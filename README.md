@@ -8,8 +8,8 @@ Architecture inspired by [JetBrains/skiko](https://github.com/JetBrains/skiko).
 
 | Platform | Target | Linking |
 |----------|--------|---------|
-| Android  | `arm64-v8a`, `armeabi-v7a`, `x86`, `x86_64` | JNI shared (`libtdjsonjava.so`) |
-| JVM      | Windows x64/arm64, Linux x64/arm64, macOS x64/arm64 | JNI shared (fat JAR, extracted at runtime) |
+| Android  | `arm64-v8a`, `armeabi-v7a`, `x86`, `x86_64` | JNI shared (`libtdjsonjava.so`, bundled in the AAR) |
+| JVM      | Windows x64/arm64, Linux x64/arm64, macOS x64/arm64 | JNI shared, per-platform runtime artifacts (extracted at runtime) |
 | iOS      | `arm64`, `simulatorArm64` | cinterop + static |
 | macOS    | `arm64`, `x64` | cinterop + static |
 | Linux    | `x64`, `arm64` | cinterop + static |
@@ -27,6 +27,7 @@ tdlib-kmp/
 │   ├── TdlibConventionPlugin.kt       — Convention plugin wiring all targets
 │   ├── TdlibNativeConfiguration.kt    — Native target config (cinterop, static linking)
 │   ├── TdlibJvmConfiguration.kt       — JVM/Android JNI staging & AAR packaging
+│   ├── TdlibJvmNativesPublications.kt — Per-platform JVM natives publications (skiko-style)
 │   ├── TdlibSourceHierarchy.kt        — Source set hierarchy
 │   └── WriteTdlibCInteropDef.kt       — Dynamic .def file generation
 ├── tdlib/                              — Core library module
@@ -63,6 +64,45 @@ dependencies {
 }
 ```
 
+### JVM desktop: add the natives artifact
+
+The `tdlib-kmp-jvm` JAR contains no native libraries. Add the runtime artifact
+for the platform(s) you ship — the same model as Compose Desktop's
+`desktop-jvm-<platform>` / skiko's `skiko-awt-runtime-<os>-<arch>`:
+
+```kotlin
+dependencies {
+    implementation("io.github.xephosbot:tdlib-kmp:<version>")
+    // pick the platform(s) you distribute to:
+    runtimeOnly("io.github.xephosbot:tdlib-kmp-jvm-natives-macos-arm64:<version>")
+}
+```
+
+To resolve the current build host automatically (equivalent of the deprecated
+`compose.desktop.currentOs`):
+
+```kotlin
+val osName = System.getProperty("os.name")
+val hostOs = when {
+    osName.startsWith("Mac") -> "macos"
+    osName.startsWith("Win") -> "windows"
+    else -> "linux"
+}
+val hostArch = when (System.getProperty("os.arch")) {
+    "aarch64", "arm64" -> "arm64"
+    else -> "x64"
+}
+
+dependencies {
+    runtimeOnly("io.github.xephosbot:tdlib-kmp-jvm-natives-$hostOs-$hostArch:<version>")
+}
+```
+
+For a single artifact bundling every desktop platform (larger, but
+distribution-agnostic) use `tdlib-kmp-jvm-natives-all`.
+
+### API
+
 ```kotlin
 import io.xbot.tdlib.TdLib
 
@@ -80,9 +120,16 @@ val syncResult = TdLib.execute("""{"@type":"getOption","name":"version"}""")
 ```
 
 Extracted artifacts are cached in `prebuilds/natives/` at the project root and **survive
-`./gradlew clean`**. Download archives are placed in `build/downloads/` and are wiped by
-`clean` — they will be re-fetched if `prebuilds/natives/` is missing.
+`./gradlew clean`**.
+
+Every downloaded archive is verified against the SHA-256 checksums pinned in
+`gradle/tdlib-natives.sha256`. After bumping `tdlib.version` in `gradle.properties`,
+refresh and commit the checksums:
+
+```bash
+./gradlew updateTdlibNativesChecksums
+```
 
 ## TDLib version
 
-Current: **1.8.62** (from [xephosbot/td-pack](https://github.com/xephosbot/td-pack/releases))
+Current: **1.8.65** (from [xephosbot/td-pack](https://github.com/xephosbot/td-pack/releases))

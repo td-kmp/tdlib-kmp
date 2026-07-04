@@ -18,18 +18,17 @@ class TdlibDependencies(
     /** Persistent prebuilds directory. */
     private val prebuildsDir: File = project.rootProject.rootDir.resolve("prebuilds/natives")
 
+    /** Committed checksums for all release assets of the pinned version. */
+    private val checksumFile = project.rootProject.layout.projectDirectory
+        .file("gradle/tdlib-natives.sha256")
+
     /** Map of asset names to their corresponding task providers. */
     private val taskProviders = mutableMapOf<String, TaskProvider<TdlibArtifactTask>>()
 
     /** JNI shared library for the given OS/arch (used by JVM target). */
     fun jniFor(os: TdlibOS, arch: TdlibArch): TaskProvider<TdlibArtifactTask> {
         val target = TdlibTarget(os, arch)
-        val archId = when {
-            os == TdlibOS.Windows && arch == TdlibArch.X64 -> "x64"
-            arch == TdlibArch.X64 -> "x86_64"
-            else -> "arm64"
-        }
-        return getOrCreateTask("tdlib-${os.id}-jni-$archId", target.jniLocalDir())
+        return getOrCreateTask(target.jniAssetName(), target.jniLocalDir())
     }
 
     /** Static / native library for a K/N target. */
@@ -61,6 +60,7 @@ class TdlibDependencies(
                 description = "Download and extract TDLib asset: $assetName"
                 tdlibVersion.set(this@TdlibDependencies.tdlibVersion)
                 this.assetName.set(assetName)
+                this.checksumFile.set(this@TdlibDependencies.checksumFile)
                 this.outputDirectory.set(targetDir)
             }
         }

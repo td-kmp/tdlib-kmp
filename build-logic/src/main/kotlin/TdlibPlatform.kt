@@ -44,6 +44,52 @@ fun Architecture.toTdlibArch(): TdlibArch = when (this) {
 internal data class TdlibTarget(val os: TdlibOS, val arch: TdlibArch)
 
 /**
+ * Compose-style platform id used in published JVM natives artifact names,
+ * e.g. `macos-arm64`, `linux-x64`, `windows-x64`.
+ */
+internal fun TdlibTarget.platformId(): String = "${os.id}-${arch.id}"
+
+/** Parses a platform id (`macos-arm64`, `windows-x64`, …) back into a [TdlibTarget]. */
+internal fun tdlibTargetFrom(platformId: String): TdlibTarget {
+    val os = TdlibOS.entries.firstOrNull { platformId.startsWith("${it.id}-") }
+        ?: error("Unknown OS in platform id: $platformId")
+    val arch = TdlibArch.entries.firstOrNull { platformId == "${os.id}-${it.id}" }
+        ?: error("Unknown arch in platform id: $platformId")
+    return TdlibTarget(os, arch)
+}
+
+/**
+ * Release asset name for the desktop JNI archive of this target,
+ * e.g. `tdlib-macos-jni-arm64`, `tdlib-linux-jni-x86_64`, `tdlib-windows-jni-x64`.
+ * (td-pack uses `x86_64` on macOS/Linux but `x64` on Windows.)
+ */
+internal fun TdlibTarget.jniAssetName(): String {
+    val archId = when {
+        arch == TdlibArch.Arm64 -> "arm64"
+        os == TdlibOS.Windows -> "x64"
+        else -> "x86_64"
+    }
+    return "tdlib-${os.id}-jni-$archId"
+}
+
+/** The desktop target of the machine running this build (used for jvmTest). */
+internal fun currentHostTarget(): TdlibTarget {
+    val osName = System.getProperty("os.name").lowercase()
+    val os = when {
+        osName.contains("mac") -> TdlibOS.MacOS
+        osName.contains("linux") -> TdlibOS.Linux
+        osName.contains("windows") -> TdlibOS.Windows
+        else -> error("Unsupported build host OS: $osName")
+    }
+    val arch = when (val osArch = System.getProperty("os.arch")) {
+        "aarch64", "arm64" -> TdlibArch.Arm64
+        "x86_64", "amd64" -> TdlibArch.X64
+        else -> error("Unsupported build host arch: $osArch")
+    }
+    return TdlibTarget(os, arch)
+}
+
+/**
  * True when this Konan target is an iOS/watchOS/tvOS simulator.
  *
  * Two cases must be handled:

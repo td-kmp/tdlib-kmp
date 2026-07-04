@@ -26,6 +26,13 @@ class TdlibConventionPlugin : Plugin<Project> {
         val tdlibDeps = TdlibDependencies(project, ext.version)
         val context = TdlibProjectContext(project, kotlin, tdlibDeps)
 
+        tasks.register("updateTdlibNativesChecksums", UpdateTdlibChecksums::class.java) {
+            group = "tdlib"
+            description = "Refresh gradle/tdlib-natives.sha256 from the td-pack release for the current tdlib.version"
+            tdlibVersion.set(ext.version)
+            checksumFile.set(rootProject.layout.projectDirectory.file("gradle/tdlib-natives.sha256"))
+        }
+
         kotlin.targets.all {
             when (platformType) {
                 KotlinPlatformType.androidJvm -> context.configureAndroidTarget(this as KotlinMultiplatformAndroidLibraryTarget)

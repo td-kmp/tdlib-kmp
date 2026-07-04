@@ -16,32 +16,38 @@ internal actual object TdLibLoader {
         // Double-checked locking
         if (loaded) return
         val libName = System.mapLibraryName("tdjsonjava")
-        val resourcePath = "/natives/${osResourceDir()}/$libName"
+        val resourcePath = "/natives/${osId()}_${archResourceId()}/$libName"
+
+        val resourceStream = TdLibLoader::class.java.getResourceAsStream(resourcePath)
+            ?: error(
+                "TDLib native library not found on the classpath ($resourcePath). " +
+                    "Add the runtime artifact for this platform to your dependencies:\n" +
+                    "  implementation(\"io.github.xephosbot:tdlib-kmp-jvm-natives-${osId()}-${archId()}:<version>\")"
+            )
 
         val tempFile = Files.createTempFile(libName, null).apply { toFile().deleteOnExit() }
-        TdLibLoader::class
-            .java
-            .getResourceAsStream(resourcePath)!!
-            .use { resourceStream ->
-                Files.copy(resourceStream, tempFile, StandardCopyOption.REPLACE_EXISTING)
-            }
+        resourceStream.use { stream ->
+            Files.copy(stream, tempFile, StandardCopyOption.REPLACE_EXISTING)
+        }
         System.load(tempFile.toFile().canonicalPath)
         loaded = true
     }
 
-    private fun osResourceDir(): String {
+    private fun osId(): String {
         val os = System.getProperty("os.name").lowercase()
-        val arch = archId(System.getProperty("os.arch"))
         return when {
-            os.contains("mac")     -> "macos_$arch"
-            os.contains("linux")   -> "linux_$arch"
-            os.contains("windows") -> "windows_$arch"
+            os.contains("mac")     -> "macos"
+            os.contains("linux")   -> "linux"
+            os.contains("windows") -> "windows"
             else -> error("Unsupported OS: $os")
         }
     }
 
-    private fun archId(arch: String): String = when (arch) {
+    private fun archId(): String = when (System.getProperty("os.arch")) {
         "aarch64", "arm64" -> "arm64"
-        else -> "64"
+        else -> "x64"
     }
+
+    /** Directory suffix inside the JAR: historical layout uses `64` for x64. */
+    private fun archResourceId(): String = if (archId() == "arm64") "arm64" else "64"
 }
