@@ -1,4 +1,5 @@
 import com.github.luben.zstd.ZstdInputStream
+import java.util.zip.GZIPInputStream
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.DirectoryProperty
@@ -53,8 +54,10 @@ abstract class TdlibArtifactTask : DefaultTask() {
     @TaskAction
     fun run() {
         val version = tdlibVersion.get()
-        val archiveName = "${assetName.get()}.tar.zst"
-        val expectedSha = readPinnedSha256(archiveName)
+        // The full archive file name (and thus the compression format — releases
+        // up to v1.8.63 ship .tar.gz, later ones .tar.zst) comes from the pinned
+        // checksums file, so a version bump changes format without code edits.
+        val (archiveName, expectedSha) = readPinnedEntry(assetName.get())
         val archiveUrl = "https://github.com/$TD_PACK_REPO/releases/download/v$version/$archiveName"
 
         val archiveFile = File(temporaryDir, archiveName)
@@ -71,22 +74,23 @@ abstract class TdlibArtifactTask : DefaultTask() {
         val outDir = outputDirectory.get().asFile
         outDir.deleteRecursively()
         outDir.mkdirs()
-        extractTarZst(archiveFile, outDir)
+        extractTar(archiveFile, outDir)
         archiveFile.delete()
     }
 
-    private fun readPinnedSha256(archiveName: String): String {
+    /** Returns the archive file name and its pinned sha256 for [asset]. */
+    private fun readPinnedEntry(asset: String): Pair<String, String> {
         val file = checksumFile.get().asFile
         val entry = file.readLines()
             .map { it.trim() }
             .filter { it.isNotEmpty() }
             .map { it.split(Regex("\\s+"), limit = 2) }
-            .firstOrNull { it.size == 2 && it[1] == archiveName }
+            .firstOrNull { it.size == 2 && it[1].startsWith("$asset.tar.") }
             ?: error(
-                "No checksum for $archiveName in $file.\n" +
+                "No checksum for $asset.tar.* in $file.\n" +
                     "Run: ./gradlew updateTdlibNativesChecksums (after bumping tdlib.version)"
             )
-        return entry[0].lowercase()
+        return entry[1] to entry[0].lowercase()
     }
 
     private fun download(url: String, dest: File) {
@@ -113,14 +117,17 @@ abstract class TdlibArtifactTask : DefaultTask() {
         throw RuntimeException("Failed to download $url after $attempts attempts", lastError)
     }
 
-    private fun extractTarZst(archive: File, outDir: File) {
+    private fun extractTar(archive: File, outDir: File) {
         val outRoot = outDir.canonicalFile.toPath()
         // zstd-jni's ZstdInputStream is used directly (not through the
         // commons-compress facade): commons-compress may be loaded from a
         // parent Gradle classloader (AGP bundles it) that can't see zstd-jni.
-        TarArchiveInputStream(
-            ZstdInputStream(BufferedInputStream(archive.inputStream()))
-        ).use { tar ->
+        val decompressed = when {
+            archive.name.endsWith(".tar.zst") -> ZstdInputStream(BufferedInputStream(archive.inputStream()))
+            archive.name.endsWith(".tar.gz") -> GZIPInputStream(BufferedInputStream(archive.inputStream()))
+            else -> error("Unsupported archive format: ${archive.name}")
+        }
+        TarArchiveInputStream(decompressed).use { tar ->
             generateSequence { tar.nextEntry }.forEach { entry ->
                 val target = outDir.resolve(entry.name)
                 // Refuse entries that would escape the output directory ("zip slip").

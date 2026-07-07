@@ -34,5 +34,20 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
       - name: Run macOS native tests
         run: ./gradlew :tdlib:macosArm64Test
+      - name: Show simulator runtimes
+        run: xcrun simctl list runtimes && xcodebuild -version
       - name: Run iOS simulator tests
         run: ./gradlew :tdlib:iosSimulatorArm64Test
+      # The K/N test binary has aborted with SIGABRT on hosted runners while
+      # passing locally — surface the crash report so the failure is actionable.
+      - name: Dump crash reports on failure
+        if: failure()
+        run: |
+          for f in ~/Library/Logs/DiagnosticReports/*; do
+            echo "════════ $f ════════"
+            cat "$f" || true
+          done
+          echo "─── simulator system log (last 200 lines) ───"
+          ls ~/Library/Logs/CoreSimulator/*/system.log 2>/dev/null | while read -r log; do
+            tail -200 "$log" || true
+          done
