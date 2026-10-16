@@ -37,4 +37,5 @@ android-multiplatform-library = { id = "com.android.kotlin.multiplatform.library
 vanniktech-maven-publish = { id = "com.vanniktech.maven.publish", version.ref = "vanniktech-maven-publish" }
 tdlib-convention = { id = "tdlib-convention" }
 tdlib-jvm-runtime = { id = "tdlib-jvm-runtime" }
+tdlib-api = { id = "tdlib-api" }
 tdlib-jvm-runtime-platform = { id = "tdlib-jvm-runtime-platform" }

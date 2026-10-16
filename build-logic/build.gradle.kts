@@ -12,6 +12,10 @@ gradlePlugin {
             id = "tdlib-jvm-runtime"
             implementationClass = "TdlibJvmRuntimePlugin"
         }
+        register("tdlibApi") {
+            id = "tdlib-api"
+            implementationClass = "TdlibApiPlugin"
+        }
         register("tdlibJvmRuntimePlatform") {
             id = "tdlib-jvm-runtime-platform"
             implementationClass = "TdlibJvmRuntimePlatformPlugin"

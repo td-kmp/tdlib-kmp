@@ -2,6 +2,8 @@ plugins {
     alias(libs.plugins.android.multiplatform.library)
     alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.tdlib.api)
+    alias(libs.plugins.vanniktech.maven.publish)
 }
 
 kotlin {
@@ -36,6 +38,9 @@ kotlin {
     mingwX64()
 
     sourceSets {
+        commonTest.dependencies {
+            implementation(kotlin("test"))
+        }
         commonMain.dependencies {
             api(projects.tdlib)
             implementation(libs.kotlinx.serialization.json)
@@ -49,3 +54,8 @@ kotlin {
         }
     }
 }
+
+configureTdlibPublishing(
+    artifactId = "$TDLIB_ARTIFACT_PREFIX-client",
+    pomName = "tdlib-kmp client",
+)

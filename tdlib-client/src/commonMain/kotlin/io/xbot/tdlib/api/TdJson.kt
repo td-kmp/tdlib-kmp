@@ -1,0 +1,41 @@
+package io.xbot.tdlib.api
+
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.descriptors.PrimitiveKind
+import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonDecoder
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.long
+import kotlin.io.encoding.Base64
+
+/** TDLib's JSON dialect: "@type" discriminator, defaults and nulls omitted, unknown fields ignored. */
+public val TdJson: Json = Json {
+    classDiscriminator = "@type"
+    ignoreUnknownKeys = true
+    encodeDefaults = false
+    explicitNulls = false
+}
+
+// TDLib writes int64 as a JSON string (it does not fit a double), but accepts numbers too.
+public object TdInt64Serializer : KSerializer<Long> {
+    override val descriptor: SerialDescriptor = PrimitiveSerialDescriptor("io.xbot.tdlib.api.Int64", PrimitiveKind.STRING)
+    override fun serialize(encoder: Encoder, value: Long): Unit = encoder.encodeString(value.toString())
+    override fun deserialize(decoder: Decoder): Long =
+        if (decoder is JsonDecoder) decoder.decodeJsonElement().jsonPrimitive.long else decoder.decodeString().toLong()
+}
+
+public object TdBytesSerializer : KSerializer<ByteArray> {
+    override val descriptor: SerialDescriptor = PrimitiveSerialDescriptor("io.xbot.tdlib.api.Bytes", PrimitiveKind.STRING)
+    override fun serialize(encoder: Encoder, value: ByteArray): Unit = encoder.encodeString(Base64.encode(value))
+    override fun deserialize(decoder: Decoder): ByteArray = Base64.decode(decoder.decodeString())
+}
+
+private val anyFunction = TdFunction.serializer(TdObject.serializer())
+
+public fun TdFunction<*>.toTdJson(): String = TdJson.encodeToString(anyFunction, this)
+
+public fun parseTdObject(json: String): TdObject = TdJson.decodeFromString(TdObject.serializer(), json)
