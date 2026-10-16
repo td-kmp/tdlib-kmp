@@ -63,7 +63,8 @@ internal object TdReceiver {
                 while (true) {
                     val event = TdLib.receive(1.0)
                     if (event != null) {
-                        dispatch(event)
+                        // Like TDLib's Java client: one bad event must not stop delivery to every client.
+                        runCatching { dispatch(event) }
                     } else if (mutex.withLock { clients.isEmpty().also { if (it) running = false } }) {
                         break
                     }
