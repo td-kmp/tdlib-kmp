@@ -3,15 +3,15 @@
 android-minsdk = "24"
 android-targetsdk = "36"
 android-compilesdk = "36"
-android-gradle-plugin = "9.1.0"
+android-gradle-plugin = "9.4.1"
 
 # Kotlin
-kotlin = "2.3.20"
-coroutines = "1.10.2"
-serialization = "1.10.0"
+kotlin = "2.4.20"
+coroutines = "1.11.0"
+serialization = "1.11.0"
 
 # Build logic
-vanniktech-maven-publish = "0.36.0"
+vanniktech-maven-publish = "0.37.0"
 aircompressor = "2.0.2"
 commons-compress = "1.28.0"
 
