@@ -9,5 +9,3 @@ build/
 .externalNativeBuild
 .cxx
 local.properties
-*.tar.gz
-prebuilds/

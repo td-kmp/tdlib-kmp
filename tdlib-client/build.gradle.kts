@@ -1,7 +1,3 @@
-@file:OptIn(ExperimentalKotlinGradlePluginApi::class)
-
-import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
-
 plugins {
     alias(libs.plugins.android.multiplatform.library)
     alias(libs.plugins.kotlin.multiplatform)
@@ -37,10 +33,11 @@ kotlin {
     macosArm64()
     linuxX64()
     linuxArm64()
+    mingwX64()
 
     sourceSets {
         commonMain.dependencies {
-            implementation("io.github.xephosbot:tdlib-kmp:1.8.62")
+            api(projects.tdlib)
             implementation(libs.kotlinx.serialization.json)
             implementation(libs.kotlinx.coroutines.core)
         }

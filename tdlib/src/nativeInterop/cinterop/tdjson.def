@@ -1,0 +1,5 @@
+package = io.xbot.tdlib.cinterop
+headers = td/telegram/td_json_client.h td/telegram/td_log.h
+headerFilter = td/telegram/*
+staticLibraries = libtdjson.a
+linkerOpts.mingw = -lws2_32 -lmswsock -lnormaliz -lpsapi -lcrypt32

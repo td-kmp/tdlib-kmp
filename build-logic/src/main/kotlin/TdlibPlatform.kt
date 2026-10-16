@@ -1,88 +1,51 @@
-/*
- * Platform model for tdlib-kmp.
- *
- * Contains:
- *  - TdlibOS / TdlibArch enums and their Konan converters.
- *  - TdlibTarget data class used as the single key for all path decisions.
- *  - Centralised path helpers on TdlibTarget:
- *      nativeLocalDir()  — local dir for K/N static artifacts  (e.g. linux-x86_64)
- *      jniLocalDir()     — local dir for JNI shared artifacts  (e.g. linux-x86_64-jni)
- *      jvmResourceDir()  — JAR resource path for fat JVM JAR  (e.g. natives/linux_64)
- */
-import org.jetbrains.kotlin.konan.target.Architecture
-import org.jetbrains.kotlin.konan.target.Family
+import org.gradle.nativeplatform.MachineArchitecture
+import org.gradle.nativeplatform.OperatingSystemFamily
 import org.jetbrains.kotlin.konan.target.KonanTarget
 
-enum class TdlibOS(val id: String) {
-    Windows("windows"),
-    Linux("linux"),
-    MacOS("macos"),
-    Android("android"),
-    IOS("ios");
-}
+const val TDLIB_GROUP_ID = "io.github.xephosbot"
+const val TDLIB_ARTIFACT_PREFIX = "tdlib-kmp"
 
-enum class TdlibArch(val id: String) {
-    X64("x64"),
-    Arm64("arm64");
-}
+/** macos_arm64 → macosArm64 */
+val KonanTarget.gradleName: String
+    get() = name.split('_').mapIndexed { i, part -> if (i == 0) part else part.replaceFirstChar(Char::uppercase) }
+        .joinToString("")
 
-fun Family.toTdlibOS(): TdlibOS = when (this) {
-    Family.MINGW -> TdlibOS.Windows
-    Family.LINUX -> TdlibOS.Linux
-    Family.OSX -> TdlibOS.MacOS
-    Family.ANDROID -> TdlibOS.Android
-    Family.IOS -> TdlibOS.IOS
-    else -> error("Unsupported family: $this")
-}
+val KonanTarget.tdpackAsset: String get() = "tdlib-$gradleName"
 
-fun Architecture.toTdlibArch(): TdlibArch = when (this) {
-    Architecture.X64 -> TdlibArch.X64
-    Architecture.ARM64 -> TdlibArch.Arm64
-    else -> error("Unsupported arch: $this")
-}
+enum class TdlibJvmPlatform(
+    val id: String,
+    val libraryFile: String,
+    val gradleOs: String,
+    val gradleArch: String,
+) {
+    MacosArm64("macos-arm64", "libtdjsonjava.dylib", OperatingSystemFamily.MACOS, MachineArchitecture.ARM64),
+    MacosX64("macos-x64", "libtdjsonjava.dylib", OperatingSystemFamily.MACOS, MachineArchitecture.X86_64),
+    LinuxX64("linux-x64", "libtdjsonjava.so", OperatingSystemFamily.LINUX, MachineArchitecture.X86_64),
+    LinuxArm64("linux-arm64", "libtdjsonjava.so", OperatingSystemFamily.LINUX, MachineArchitecture.ARM64),
+    WindowsX64("windows-x64", "tdjsonjava.dll", OperatingSystemFamily.WINDOWS, MachineArchitecture.X86_64),
+    WindowsArm64("windows-arm64", "tdjsonjava.dll", OperatingSystemFamily.WINDOWS, MachineArchitecture.ARM64);
 
-internal data class TdlibTarget(val os: TdlibOS, val arch: TdlibArch)
+    val tdpackAsset: String get() = "tdlib-jni-$id"
+    val artifactId: String get() = "$TDLIB_ARTIFACT_PREFIX-jvm-runtime-$id"
+    val resourceDir: String get() = "io/xbot/tdlib/natives/$id"
 
-/**
- * True when this Konan target is an iOS/watchOS/tvOS simulator.
- *
- * Two cases must be handled:
- *  - New-style names contain "simulator" (e.g. iosSimulatorArm64 → "ios_simulator_arm64").
- *  - Legacy iosX64 target name is just "ios_x64" — no "simulator" in the name,
- *    but for iOS the x86_64 architecture is exclusively used by the simulator.
- */
-internal val KonanTarget.isSimulator: Boolean
-    get() = name.contains("simulator", ignoreCase = true) ||
-            (family == Family.IOS && architecture == Architecture.X64)
+    companion object {
+        fun byId(id: String): TdlibJvmPlatform =
+            entries.firstOrNull { it.id == id } ?: error("Unknown JVM platform '$id'")
 
-/**
- * Local directory name for extracted native (K/N) artifacts.
- * e.g. linux-x86_64, macos-arm64, ios-arm64-simulator
- */
-internal fun TdlibTarget.nativeLocalDir(isSimulator: Boolean = false): String {
-    val tail = when {
-        os == TdlibOS.IOS && isSimulator -> if (arch == TdlibArch.Arm64) "arm64-simulator" else "x86_64-simulator"
-        os == TdlibOS.IOS                -> "arm64"
-        os == TdlibOS.Linux              -> if (arch == TdlibArch.X64) "x86_64" else "arm64"
-        os == TdlibOS.MacOS              -> if (arch == TdlibArch.X64) "x86_64" else "arm64"
-        os == TdlibOS.Windows            -> if (arch == TdlibArch.X64) "x64"    else "arm64"
-        else -> error("Unsupported: $os / $arch")
+        fun host(): TdlibJvmPlatform {
+            val os = System.getProperty("os.name").lowercase()
+            val arm = System.getProperty("os.arch").lowercase() in setOf("aarch64", "arm64")
+            return when {
+                os.startsWith("mac") -> if (arm) MacosArm64 else MacosX64
+                os.startsWith("linux") -> if (arm) LinuxArm64 else LinuxX64
+                os.startsWith("windows") -> if (arm) WindowsArm64 else WindowsX64
+                else -> error("Unsupported host OS: $os")
+            }
+        }
     }
-    return "${os.id}-$tail"
 }
 
-/**
- * Local directory name for extracted JNI artifacts.
- * e.g. linux-x86_64-jni, macos-arm64-jni, windows-x64-jni
- */
-internal fun TdlibTarget.jniLocalDir(): String = "${nativeLocalDir()}-jni"
+val TDLIB_ANDROID_ABIS = listOf("arm64-v8a", "armeabi-v7a", "x86_64", "x86")
 
-/**
- * Resource path used inside the JVM fat JAR.
- * Follows the /natives/{os}_{arch}/ convention.
- * e.g. natives/linux_64, natives/macos_arm64, natives/windows_64
- */
-internal fun TdlibTarget.jvmResourceDir(): String {
-    val archSuffix = if (arch == TdlibArch.X64) "64" else "arm64"
-    return "natives/${os.id}_$archSuffix"
-}
+fun androidTdpackAsset(abi: String): String = "tdlib-jni-android-$abi"
