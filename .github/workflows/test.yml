@@ -33,7 +33,7 @@ jobs:
         run: >
           ./gradlew :tdlib:jvmTest :tdlib:linuxX64Test
           :tdlib:compileKotlinLinuxArm64 :tdlib:compileKotlinMingwX64
-          :tdlib:bundleAndroidMainAar :tdlib-client:compileKotlinJvm
+          :tdlib:bundleAndroidMainAar :tdlib-client:jvmTest
 
   apple:
     runs-on: macos-15
@@ -50,7 +50,7 @@ jobs:
           path: ~/.konan
           key: konan-${{ runner.os }}-${{ hashFiles('gradle/libs.versions.toml') }}
       - name: Test
-        run: ./gradlew :tdlib:macosArm64Test :tdlib:iosSimulatorArm64Test
+        run: ./gradlew :tdlib:macosArm64Test :tdlib:iosSimulatorArm64Test :tdlib-client:macosArm64Test
 
   android:
     runs-on: ubuntu-24.04
@@ -73,4 +73,4 @@ jobs:
           arch: x86_64
           target: default
           emulator-options: -no-window -no-audio -no-boot-anim -no-snapshot
-          script: ./gradlew :tdlib:connectedAndroidDeviceTest
+          script: ./gradlew :tdlib:connectedAndroidDeviceTest :tdlib-client:connectedAndroidDeviceTest

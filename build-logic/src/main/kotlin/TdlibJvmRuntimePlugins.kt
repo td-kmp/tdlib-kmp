@@ -110,7 +110,7 @@ abstract class TdlibJvmRuntimePlugin @Inject constructor(
 
 fun Project.configureTdlibPublishing(artifactId: String, pomName: String) {
     group = TDLIB_GROUP_ID
-    version = providers.gradleProperty("tdlib.version").get()
+    version = tdlibArtifactVersion()
     extensions.configure<MavenPublishBaseExtension> {
         publishToMavenCentral()
         // Only CI has the key; publishToMavenLocal must work without it.

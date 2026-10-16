@@ -2,6 +2,8 @@ plugins {
     alias(libs.plugins.android.multiplatform.library)
     alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.tdlib.api)
+    alias(libs.plugins.vanniktech.maven.publish)
 }
 
 kotlin {
@@ -36,10 +38,14 @@ kotlin {
     mingwX64()
 
     sourceSets {
+        commonTest.dependencies {
+            implementation(kotlin("test"))
+            implementation(libs.kotlinx.coroutines.test)
+        }
         commonMain.dependencies {
             api(projects.tdlib)
-            implementation(libs.kotlinx.serialization.json)
-            implementation(libs.kotlinx.coroutines.core)
+            api(libs.kotlinx.serialization.json)
+            api(libs.kotlinx.coroutines.core)
         }
         getByName("androidDeviceTest") {
             dependencies {
@@ -49,3 +55,8 @@ kotlin {
         }
     }
 }
+
+configureTdlibPublishing(
+    artifactId = "$TDLIB_ARTIFACT_PREFIX-client",
+    pomName = "tdlib-kmp client",
+)

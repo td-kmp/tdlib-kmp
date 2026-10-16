@@ -28,6 +28,7 @@ commons-compress = { module = "org.apache.commons:commons-compress", version.ref
 androidx-test-runner = { group = "androidx.test", name = "runner", version.ref = "androidx-test" }
 androidx-test-ext-junit = { group = "androidx.test.ext", name = "junit", version.ref = "androidx-test-ext-junit" }
 kotlinx-coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "coroutines" }
+kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutines" }
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "serialization" }
 
 [plugins]
@@ -37,4 +38,5 @@ android-multiplatform-library = { id = "com.android.kotlin.multiplatform.library
 vanniktech-maven-publish = { id = "com.vanniktech.maven.publish", version.ref = "vanniktech-maven-publish" }
 tdlib-convention = { id = "tdlib-convention" }
 tdlib-jvm-runtime = { id = "tdlib-jvm-runtime" }
+tdlib-api = { id = "tdlib-api" }
 tdlib-jvm-runtime-platform = { id = "tdlib-jvm-runtime-platform" }

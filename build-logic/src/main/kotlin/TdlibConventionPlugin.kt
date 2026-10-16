@@ -20,9 +20,7 @@ class TdlibConventionPlugin : Plugin<Project> {
         kotlin.targets.withType(KotlinNativeTarget::class.java).configureEach {
             configureNativeTarget(this, natives)
         }
-        kotlin.targets.withType(KotlinJvmTarget::class.java).configureEach {
-            configureJvmTests(this)
-        }
+        useHostJvmNativesInTests()
         pluginManager.withPlugin("com.android.kotlin.multiplatform.library") {
             configureAndroid(natives)
         }
@@ -48,12 +46,14 @@ private fun Project.configureNativeTarget(target: KotlinNativeTarget, natives: T
 }
 
 // Without OS/arch attributes :tdlib-jvm-runtime resolves to every platform's jar.
-private fun Project.configureJvmTests(target: KotlinJvmTarget) {
+fun Project.useHostJvmNativesInTests() {
     val host = TdlibJvmPlatform.host()
-    configurations.matching { it.name == "${target.name}TestRuntimeClasspath" }.configureEach {
-        attributes {
-            attribute(OperatingSystemFamily.OPERATING_SYSTEM_ATTRIBUTE, objects.named(host.gradleOs))
-            attribute(MachineArchitecture.ARCHITECTURE_ATTRIBUTE, objects.named(host.gradleArch))
+    extensions.getByType<KotlinMultiplatformExtension>().targets.withType(KotlinJvmTarget::class.java).configureEach {
+        configurations.matching { it.name == "${name}TestRuntimeClasspath" }.configureEach {
+            attributes {
+                attribute(OperatingSystemFamily.OPERATING_SYSTEM_ATTRIBUTE, objects.named(host.gradleOs))
+                attribute(MachineArchitecture.ARCHITECTURE_ATTRIBUTE, objects.named(host.gradleArch))
+            }
         }
     }
 }

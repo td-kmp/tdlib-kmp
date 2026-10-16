@@ -22,6 +22,12 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v6
 
+      - name: Check the tag matches the version
+        run: |
+          tdlib=$(sed -n 's/^tdlib.version=//p' gradle.properties)
+          library=$(sed -n 's/^library.version=//p' gradle.properties)
+          [ "$GITHUB_REF_NAME" = "v$tdlib-$library" ] || { echo "Tag $GITHUB_REF_NAME, but gradle.properties says v$tdlib-$library"; exit 1; }
+
       - name: Publish to Maven Central
         run: ./gradlew publishToMavenCentral --no-configuration-cache
         env:
