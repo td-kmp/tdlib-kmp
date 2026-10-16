@@ -107,6 +107,19 @@ Maven consumers get all six. At runtime the library is found, in order, in the
 the runtime jar into a cache directory keyed by its SHA-256 (`tdlib.cache.dir`, default the
 OS cache directory, e.g. `~/Library/Caches/tdlib-kmp`).
 
+## Versioning
+
+`<TDLib version>-<library version>`, e.g. `1.8.68-1.0.0-alpha01`:
+
+- the first part is the td-pack release, i.e. the TDLib the natives and the generated API
+  come from (`tdlib.version` in gradle.properties);
+- the second is this library's own version, Jetpack-style: `x.y.z`, pre-releases
+  `-alphaNN` / `-betaNN` / `-rcNN` (`library.version`); it does not reset when TDLib moves.
+
+Gradle and Maven both order these as expected (`…-1.0.0-alpha01 < …-1.0.0-rc01 < …-1.0.0 <
+…-1.0.1`, then by TDLib version). Releases are tagged `v<version>`; publish.yml refuses a tag
+that does not match gradle.properties.
+
 ## Building
 
 ```bash
