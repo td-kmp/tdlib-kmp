@@ -120,7 +120,7 @@ fun Project.configureTdlibPublishing(artifactId: String, pomName: String) {
             name.set(pomName)
             description.set("TDLib (Telegram Database Library) for Kotlin Multiplatform")
             inceptionYear.set("2026")
-            url.set("https://github.com/xephosbot/tdlib-kmp")
+            url.set("https://github.com/td-kmp/tdlib-kmp")
             licenses {
                 license {
                     name.set("Boost Software License 1.0")
@@ -134,14 +134,14 @@ fun Project.configureTdlibPublishing(artifactId: String, pomName: String) {
                     name.set("xephosbot")
                     email.set("xephosbot@gmail.com")
                     url.set("https://github.com/xephosbot/")
-                    organization.set("xephosbot")
-                    organizationUrl.set("https://github.com/xephosbot/")
+                    organization.set("td-kmp")
+                    organizationUrl.set("https://github.com/td-kmp/")
                 }
             }
             scm {
-                url.set("https://github.com/xephosbot/tdlib-kmp/")
-                connection.set("scm:git:git://github.com/xephosbot/tdlib-kmp.git")
-                developerConnection.set("scm:git:ssh://git@github.com/xephosbot/tdlib-kmp.git")
+                url.set("https://github.com/td-kmp/tdlib-kmp/")
+                connection.set("scm:git:git://github.com/td-kmp/tdlib-kmp.git")
+                developerConnection.set("scm:git:ssh://git@github.com/td-kmp/tdlib-kmp.git")
             }
         }
     }

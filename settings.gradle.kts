@@ -26,7 +26,7 @@ dependencyResolutionManagement {
         google()
         mavenCentral()
         // td-pack's GitHub release assets as dependencies: "io.github.xephosbot.td-pack:<asset>:<version>@tar.zst".
-        ivy("https://github.com/xephosbot/td-pack/releases/download") {
+        ivy("https://github.com/td-kmp/td-pack/releases/download") {
             name = "td-pack"
             patternLayout { artifact("v[revision]/[module].[ext]") }
             metadataSources { artifact() }
