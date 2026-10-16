@@ -18,7 +18,8 @@ import org.jetbrains.kotlin.gradle.plugin.KotlinHierarchyTemplate
  *     ├── darwin
  *     │   ├── ios   (iosArm64, iosSimulatorArm64, iosX64)
  *     │   └── macos (macosArm64, macosX64)
- *     └── linux     (linuxX64, linuxArm64)
+ *     ├── linux     (linuxX64, linuxArm64)
+ *     └── mingw     (mingwX64)
  * ```
  */
 val tdlibSourceSetHierarchyTemplate = KotlinHierarchyTemplate {
@@ -45,6 +46,10 @@ val tdlibSourceSetHierarchyTemplate = KotlinHierarchyTemplate {
             group("linux") {
                 withLinuxX64()
                 withLinuxArm64()
+            }
+
+            group("mingw") {
+                withMingwX64()
             }
         }
     }

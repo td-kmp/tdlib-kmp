@@ -1,0 +1,14 @@
+# TDLib's tdjson C API (td_json_client.h + td_log.h).
+#
+# libtdjson.a comes from the td-pack archive of each Kotlin/Native target: TDLib,
+# OpenSSL and zlib prelinked into one object, exporting only this API. Its include
+# directory and its lib directory (-libraryPath) are passed by the tdlib-convention
+# plugin; the archive is embedded into the klib, so consumers need nothing else.
+package = io.xbot.tdlib.cinterop
+headers = td/telegram/td_json_client.h td/telegram/td_log.h
+headerFilter = td/telegram/*
+staticLibraries = libtdjson.a
+
+# Windows system libraries TDLib and OpenSSL use (td-pack's tdlib.properties);
+# everything else is already linked by Kotlin/Native.
+linkerOpts.mingw = -lws2_32 -lmswsock -lnormaliz -lpsapi -lcrypt32

@@ -6,6 +6,11 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 class TdLibTest {
+    init {
+        // TDLib logs at verbosity 5 by default; keep test output readable.
+        TdLib.execute("""{"@type":"setLogVerbosityLevel","new_verbosity_level":1}""")
+    }
+
     @Test
     fun testCreateClientId() {
         val id = TdLib.createClientId()
@@ -55,5 +60,18 @@ class TdLibTest {
             response.contains(extra),
             "@extra field must be echoed back in the response: $response"
         )
+    }
+
+    @Test
+    fun testLogMessageHandler() {
+        val marker = "tdlib-kmp-log-check"
+        var received: String? = null
+        TdLib.setLogMessageHandler(1) { _, message -> if (marker in message) received = message }
+        try {
+            TdLib.execute("""{"@type":"addLogMessage","verbosity_level":1,"text":"$marker"}""")
+        } finally {
+            TdLib.setLogMessageHandler(0, null)
+        }
+        assertNotNull(received, "The log message handler must receive addLogMessage output")
     }
 }

@@ -10,9 +10,10 @@ kotlin = "2.3.20"
 coroutines = "1.10.2"
 serialization = "1.10.0"
 
-# Utils
-gradle-download-task = "5.7.0"
+# Build logic
 vanniktech-maven-publish = "0.36.0"
+aircompressor = "2.0.2"
+commons-compress = "1.28.0"
 
 # AndroidX Test
 androidx-test = "1.7.0"
@@ -21,7 +22,9 @@ androidx-test-ext-junit = "1.3.0"
 [libraries]
 kotlin-gradle-plugin = { group = "org.jetbrains.kotlin", name = "kotlin-gradle-plugin", version.ref = "kotlin" }
 android-gradle-plugin = { module = "com.android.tools.build:gradle", version.ref = "android-gradle-plugin" }
-gradle-download-task-gradle-plugin = { module = "de.undercouch:gradle-download-task", version.ref = "gradle-download-task" }
+vanniktech-maven-publish-plugin = { module = "com.vanniktech:gradle-maven-publish-plugin", version.ref = "vanniktech-maven-publish" }
+aircompressor = { module = "io.airlift:aircompressor", version.ref = "aircompressor" }
+commons-compress = { module = "org.apache.commons:commons-compress", version.ref = "commons-compress" }
 androidx-test-runner = { group = "androidx.test", name = "runner", version.ref = "androidx-test" }
 androidx-test-ext-junit = { group = "androidx.test.ext", name = "junit", version.ref = "androidx-test-ext-junit" }
 kotlinx-coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "coroutines" }
@@ -31,6 +34,7 @@ kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-
 kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 android-multiplatform-library = { id = "com.android.kotlin.multiplatform.library", version.ref = "android-gradle-plugin" }
-gradle-download-task = { id = "de.undercouch.download", version.ref = "gradle-download-task" }
 vanniktech-maven-publish = { id = "com.vanniktech.maven.publish", version.ref = "vanniktech-maven-publish" }
 tdlib-convention = { id = "tdlib-convention" }
+tdlib-jvm-runtime = { id = "tdlib-jvm-runtime" }
+tdlib-jvm-runtime-platform = { id = "tdlib-jvm-runtime-platform" }
