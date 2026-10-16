@@ -24,7 +24,7 @@ public object TdBytesSerializer : KSerializer<ByteArray> {
     override fun deserialize(decoder: Decoder): ByteArray = Base64.decode(decoder.decodeString())
 }
 
-private val anyFunction = TdFunction.serializer(TdObject.serializer())
+internal val anyFunction = TdFunction.serializer(TdObject.serializer())
 
 public fun TdFunction<*>.toTdJson(): String = TdJson.encodeToString(anyFunction, this)
 

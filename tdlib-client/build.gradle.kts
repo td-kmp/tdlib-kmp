@@ -40,11 +40,12 @@ kotlin {
     sourceSets {
         commonTest.dependencies {
             implementation(kotlin("test"))
+            implementation(libs.kotlinx.coroutines.test)
         }
         commonMain.dependencies {
             api(projects.tdlib)
-            implementation(libs.kotlinx.serialization.json)
-            implementation(libs.kotlinx.coroutines.core)
+            api(libs.kotlinx.serialization.json)
+            api(libs.kotlinx.coroutines.core)
         }
         getByName("androidDeviceTest") {
             dependencies {

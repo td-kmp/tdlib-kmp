@@ -39,10 +39,23 @@ implementation("io.github.xephosbot:tdlib-kmp-client:<version>")
 
 ```kotlin
 import io.xbot.tdlib.api.*
+import io.xbot.tdlib.client.TdClient
 
-val result = parseTdObject(TdLib.execute(GetOption(name = "version").toTdJson())!!)
-if (result is OptionValueString) println(result.value)
+val client = TdClient.create()
+launch { client.updatesOf<UpdateNewMessage>().collect { println(it.message.content) } }
+
+client.send(SetTdlibParameters(databaseDirectory = "tdlib", apiId = ..., apiHash = "...", ...))
+client.authorizationState.first { it is AuthorizationStateWaitPhoneNumber }
+val me: User = client.send(GetMe)       // typed by the function; TDLib errors throw TdException
+client.close()                          // waits for authorizationStateClosed
+
+TdClient.execute(GetTextEntities(text = "@telegram"))   // synchronous functions
 ```
+
+TDLib starts an instance on its first request: collect `updates` before that, or read
+`authorizationState`, which always holds the latest state. All clients share one receive
+loop (TDLib allows a single `td_receive` caller); collectors should keep up, updates are
+buffered without bound.
 
 - abstract TL types are sealed interfaces, constructors data classes/objects, functions
   `TdFunction<R>` with `R` the result type;
@@ -125,5 +138,5 @@ build-logic/src/main/kotlin/
   TdlibApiPlugin.kt             :tdlib-client — schema resolution + generation
 tdlib/                          the library (src/nativeInterop/cinterop/tdjson.def)
 tdlib-jvm-runtime/              JVM natives: umbrella + one project per platform
-tdlib-client/                   generated td_api DTOs (+ [WIP] coroutine client)
+tdlib-client/                   generated td_api DTOs + coroutine TdClient
 ```

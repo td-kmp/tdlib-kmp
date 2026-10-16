@@ -73,4 +73,4 @@ jobs:
           arch: x86_64
           target: default
           emulator-options: -no-window -no-audio -no-boot-anim -no-snapshot
-          script: ./gradlew :tdlib:connectedAndroidDeviceTest
+          script: ./gradlew :tdlib:connectedAndroidDeviceTest :tdlib-client:connectedAndroidDeviceTest
