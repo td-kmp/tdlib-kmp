@@ -1,6 +1,4 @@
-# libtdjsonjava binds its natives by name from JNI_OnLoad (RegisterNatives on
-# io/xbot/tdlib/NativeBridge) and calls LogMessageHandler.onLogMessage(int, String)
-# by name, so R8 must keep these exact names.
+# libtdjsonjava binds these by name (RegisterNatives / GetMethodID).
 -keepclasseswithmembernames,includedescriptorclasses class io.xbot.tdlib.NativeBridge {
     native <methods>;
 }

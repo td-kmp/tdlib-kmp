@@ -1,20 +1,3 @@
-/*
- * JVM natives, the way skiko ships them (skiko-awt-runtime-<os>-<arch> +
- * skiko-awt-runtime):
- *
- *   tdlib-kmp-jvm-runtime-<os>-<arch>   one jar per platform: the JNI library and its
- *                                       hash under io/xbot/tdlib/natives/<os>-<arch>/
- *   tdlib-kmp-jvm-runtime               no artifact of its own; Gradle variants, one
- *                                       per platform (OperatingSystemFamily +
- *                                       MachineArchitecture attributes), each depending
- *                                       on that platform's jar
- *
- * tdlib-kmp-jvm depends on tdlib-kmp-jvm-runtime. A consumer asking for its OS/arch
- * attributes on the runtime classpath gets exactly one platform's jar; a consumer
- * asking for none falls back to the attribute-less "all" variant, which depends on
- * every platform's jar (Gradle prefers the candidate without unrequested attributes).
- * Maven consumers see only the "all" variant's dependencies in the POM.
- */
 import com.vanniktech.maven.publish.MavenPublishBaseExtension
 import org.gradle.api.Plugin
 import org.gradle.api.Project
@@ -39,14 +22,12 @@ import org.gradle.nativeplatform.OperatingSystemFamily
 import org.jetbrains.kotlin.gradle.plugin.KotlinPlatformType
 import javax.inject.Inject
 
-/** `:tdlib-jvm-runtime:<os>-<arch>` → tdlib-kmp-jvm-runtime-<os>-<arch>.jar */
 class TdlibJvmRuntimePlatformPlugin : Plugin<Project> {
     override fun apply(project: Project) = with(project) {
         val platform = TdlibJvmPlatform.byId(name)
         pluginManager.apply("java-library")
         pluginManager.apply("com.vanniktech.maven.publish")
 
-        // A resources-only jar: any JVM can use it.
         extensions.configure<JavaPluginExtension> {
             sourceCompatibility = org.gradle.api.JavaVersion.VERSION_1_8
             targetCompatibility = org.gradle.api.JavaVersion.VERSION_1_8
@@ -73,7 +54,8 @@ class TdlibJvmRuntimePlatformPlugin : Plugin<Project> {
     }
 }
 
-/** `:tdlib-jvm-runtime` → tdlib-kmp-jvm-runtime (variants only). */
+// One variant per OS/arch, plus an attribute-less "all" one that Gradle prefers when the
+// consumer requests no platform (skiko's skiko-awt-runtime scheme).
 abstract class TdlibJvmRuntimePlugin @Inject constructor(
     private val componentFactory: SoftwareComponentFactory,
 ) : Plugin<Project> {
@@ -89,8 +71,7 @@ abstract class TdlibJvmRuntimePlugin @Inject constructor(
                 attribute(OperatingSystemFamily.OPERATING_SYSTEM_ATTRIBUTE, objects.named(platform.gradleOs))
                 attribute(MachineArchitecture.ARCHITECTURE_ATTRIBUTE, objects.named(platform.gradleArch))
             }
-            // Not mapped to a Maven scope: Gradle Module Metadata only, since Maven
-            // cannot select by platform.
+            // No Maven scope: Maven cannot select by platform, the POM lists only the "all" variant.
             component.addVariantsFromConfiguration(variant) {}
         }
         val all = runtimeVariant("allRuntimeElements", TdlibJvmPlatform.entries) {}
@@ -127,12 +108,12 @@ abstract class TdlibJvmRuntimePlugin @Inject constructor(
     }
 }
 
-/** Maven Central coordinates, POM and signing shared by every published module. */
 fun Project.configureTdlibPublishing(artifactId: String, pomName: String) {
     group = TDLIB_GROUP_ID
     version = providers.gradleProperty("tdlib.version").get()
     extensions.configure<MavenPublishBaseExtension> {
         publishToMavenCentral()
+        // Only CI has the key; publishToMavenLocal must work without it.
         if (providers.gradleProperty("signingInMemoryKey").isPresent) signAllPublications()
         coordinates(TDLIB_GROUP_ID, artifactId, version.toString())
         pom {

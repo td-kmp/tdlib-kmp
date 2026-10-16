@@ -7,7 +7,6 @@ import kotlin.test.assertTrue
 
 class TdLibTest {
     init {
-        // TDLib logs at verbosity 5 by default; keep test output readable.
         TdLib.execute("""{"@type":"setLogVerbosityLevel","new_verbosity_level":1}""")
     }
 

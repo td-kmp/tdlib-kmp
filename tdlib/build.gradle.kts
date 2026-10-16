@@ -21,7 +21,6 @@ kotlin {
         }
         minSdk = libs.versions.android.minsdk.get().toInt()
 
-        // td_jni.cpp binds the natives by name (RegisterNatives); keep them under R8.
         optimization {
             consumerKeepRules.apply {
                 publish = true
@@ -48,8 +47,6 @@ kotlin {
 
     sourceSets {
         jvmMain.dependencies {
-            // The JNI library for the consumer's platform (or all of them), see
-            // build-logic/src/main/kotlin/TdlibJvmRuntimePlugins.kt.
             runtimeOnly(projects.tdlibJvmRuntime)
         }
         commonTest.dependencies {

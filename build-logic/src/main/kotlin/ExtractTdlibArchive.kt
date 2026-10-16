@@ -11,7 +11,7 @@ import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
 import java.io.File
 
-/** Extracts one td-pack `.tar.zst` archive (Gradle's tarTree cannot read zstd). */
+// Gradle's tarTree cannot read zstd.
 @CacheableTask
 abstract class ExtractTdlibArchive : DefaultTask() {
 
@@ -35,7 +35,6 @@ abstract class ExtractTdlibArchive : DefaultTask() {
             while (true) {
                 val entry = tar.nextEntry ?: break
                 val target = File(dest, entry.name).canonicalFile
-                // Refuse entries escaping the destination ("../", absolute paths).
                 check(target.toPath().startsWith(root.toPath())) { "Unsafe path in $source: ${entry.name}" }
                 when {
                     entry.isDirectory -> target.mkdirs()
@@ -44,7 +43,6 @@ abstract class ExtractTdlibArchive : DefaultTask() {
                         target.outputStream().use { tar.copyTo(it) }
                         if (entry.mode and 0b001_001_001 != 0) target.setExecutable(true, false)
                     }
-                    // td-pack archives contain only plain files and directories.
                     else -> logger.warn("Skipping ${entry.name} in $source (not a regular file)")
                 }
             }

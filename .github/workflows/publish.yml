@@ -10,7 +10,7 @@ permissions:
 jobs:
   publish:
     name: Release build and publish
-    # Apple klibs need macOS; every other target cross-compiles there.
+    # Apple klibs can only be built on macOS.
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v5

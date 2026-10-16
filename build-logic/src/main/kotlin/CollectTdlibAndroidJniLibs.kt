@@ -11,17 +11,11 @@ import org.gradle.api.tasks.TaskAction
 import java.util.Properties
 import javax.inject.Inject
 
-/**
- * Builds an Android `jniLibs` tree (`<abi>/libtdjsonjava.so`) from extracted
- * td-pack archives; registered with AGP as a generated jniLibs source directory.
- * Each archive names its ABI in tdlib.properties (`android.abi`).
- */
 @CacheableTask
 abstract class CollectTdlibAndroidJniLibs @Inject constructor(
     private val fs: FileSystemOperations,
 ) : DefaultTask() {
 
-    /** Extracted td-pack Android JNI archive directories. */
     @get:InputFiles
     @get:PathSensitive(PathSensitivity.RELATIVE)
     abstract val archives: ConfigurableFileCollection
@@ -33,6 +27,7 @@ abstract class CollectTdlibAndroidJniLibs @Inject constructor(
     fun collect() {
         fs.sync {
             archives.files.forEach { dir ->
+                // The ABI is only recorded in the archive's tdlib.properties.
                 val properties = Properties().apply { dir.resolve("tdlib.properties").reader().use(::load) }
                 val abi = checkNotNull(properties.getProperty("android.abi")) { "No android.abi in $dir" }
                 from(dir.resolve("lib")) {

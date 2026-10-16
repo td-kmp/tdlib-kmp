@@ -5,16 +5,6 @@ import java.io.RandomAccessFile
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 
-/**
- * Finds and loads libtdjsonjava for the running JVM, trying in order:
- *
- *  1. the directory in the `tdlib.library.path` system property;
- *  2. the JVM's own library directory (`java.home`/lib, or /bin on Windows), where
- *     packaged desktop apps (jpackage, Compose Desktop) usually put natives;
- *  3. the `tdlib-kmp-jvm-runtime-<os>-<arch>` jar on the classpath: the library is
- *     extracted once into a cache directory keyed by its SHA-256
- *     (`tdlib.cache.dir`, default: the OS cache directory) and loaded from there.
- */
 internal actual object TdLibLoader {
     private const val LIBRARY = "tdjsonjava"
 
@@ -55,7 +45,7 @@ internal actual object TdLibLoader {
         loadFile(extract(resource, fileName, File(cacheRoot(), "$platform-$hash")))
     }
 
-    /** Extracts [resource] into [dir] once; concurrent JVMs serialize on a lock file. */
+    // Concurrent JVMs extract under a file lock, then move into place atomically.
     private fun extract(resource: String, fileName: String, dir: File): File {
         val target = File(dir, fileName)
         if (target.isFile) return target
@@ -81,8 +71,7 @@ internal actual object TdLibLoader {
         try {
             System.load(file.absolutePath)
         } catch (e: UnsatisfiedLinkError) {
-            // A native library can be loaded by one class loader only (e.g. two IDE
-            // plugins bundling tdlib-kmp): load a private copy instead.
+            // A library loads into one class loader only (e.g. two IDE plugins bundling tdlib-kmp).
             if (e.message?.contains("already loaded in another classloader") != true) throw e
             val copy = Files.createTempDirectory("tdlib-kmp").toFile().resolve(file.name)
             file.copyTo(copy)
@@ -95,7 +84,6 @@ internal actual object TdLibLoader {
     private val isWindows: Boolean
         get() = System.getProperty("os.name").lowercase().startsWith("windows")
 
-    /** os-arch, as in the runtime artifact names: macos-arm64, linux-x64, windows-x64, ... */
     private fun platformId(): String {
         val osName = System.getProperty("os.name").lowercase()
         val os = when {

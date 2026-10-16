@@ -1,10 +1,6 @@
 package io.xbot.tdlib
 
-/**
- * The natives of libtdjsonjava. td_jni.cpp registers them on this class by name
- * (io/xbot/tdlib/NativeBridge) from JNI_OnLoad and calls
- * [LogMessageHandler.onLogMessage] by name: keep both names stable (consumer-rules.pro).
- */
+// td_jni.cpp binds the natives and LogMessageHandler.onLogMessage by name: keep the names (consumer-rules.pro).
 internal actual object NativeBridge {
     init {
         TdLibLoader.load()
@@ -17,7 +13,6 @@ internal actual object NativeBridge {
     actual fun setLogMessageHandler(maxVerbosityLevel: Int, handler: TdLogMessageHandler?) =
         nativeSetLogMessageHandler(maxVerbosityLevel, handler?.let { LogMessageHandler(it::onLogMessage) })
 
-    /** The callback type td_jni.cpp expects: NativeBridge$LogMessageHandler. */
     fun interface LogMessageHandler {
         fun onLogMessage(verbosityLevel: Int, message: String)
     }

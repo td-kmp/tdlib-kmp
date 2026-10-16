@@ -29,7 +29,7 @@ internal actual object NativeBridge {
     }
 }
 
-// A C callback cannot capture state, so the handler lives in a global.
+// staticCFunction cannot capture, so the handler is a global.
 @Volatile
 private var logMessageHandler: TdLogMessageHandler? = null
 

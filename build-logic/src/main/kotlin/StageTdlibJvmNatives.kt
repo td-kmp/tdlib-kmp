@@ -11,11 +11,7 @@ import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
 import java.security.MessageDigest
 
-/**
- * Lays out one JNI library as runtime-jar resources:
- *   <resourceDir>/<library>          the library itself
- *   <resourceDir>/<library>.sha256   its hash; the loader keys its on-disk cache by it
- */
+/** `<resourceDir>/<library>` plus its `.sha256`, which keys the loader's disk cache. */
 @CacheableTask
 abstract class StageTdlibJvmNatives : DefaultTask() {
 

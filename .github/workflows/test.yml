@@ -15,8 +15,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # JVM + Linux native tests; MinGW / Linux arm64 klibs and the AAR are built
-  # (cross-compiled) but not run.
   linux:
     runs-on: ubuntu-24.04
     steps:
@@ -37,7 +35,6 @@ jobs:
           :tdlib:compileKotlinLinuxArm64 :tdlib:compileKotlinMingwX64
           :tdlib:bundleAndroidMainAar :tdlib-client:compileKotlinJvm
 
-  # macOS + iOS simulator native tests.
   apple:
     runs-on: macos-15
     steps:
@@ -55,7 +52,6 @@ jobs:
       - name: Test
         run: ./gradlew :tdlib:macosArm64Test :tdlib:iosSimulatorArm64Test
 
-  # The common tests as an instrumented test, on an x86_64 emulator.
   android:
     runs-on: ubuntu-24.04
     steps:
