@@ -45,13 +45,18 @@ class TdApiTest {
     }
 
     @Test
-    fun int64AsString() {
-        val value: OptionValue = OptionValueInteger(value = Long.MAX_VALUE)
-        val json = TdJson.encodeToString(OptionValue.serializer(), value)
-        assertEquals("""{"@type":"optionValueInteger","value":"${Long.MAX_VALUE}"}""", json)
-        assertEquals(value, TdJson.decodeFromString(OptionValue.serializer(), json))
+    fun int64RoundTripsThroughTdlib() {
+        // getPushReceiverId returns the first 8 bytes of "p": here Long.MAX_VALUE, beyond a double's precision.
+        val id = execute(GetPushReceiverId(payload = """{"p":"_________38AAAAAAAAAAA=="}"""))
+        assertEquals(PushReceiverId(id = Long.MAX_VALUE), id)
 
         val ids = TdJson.decodeFromString(EmojiStatusCustomEmojis.serializer(), """{"custom_emoji_ids":["1","-2"]}""")
         assertEquals(listOf(1L, -2L), ids.customEmojiIds)
+    }
+
+    @Test
+    fun bytesAsBase64() {
+        val json = SetTdlibParameters(databaseEncryptionKey = byteArrayOf(1, 2, 3)).toTdJson()
+        assertTrue("\"database_encryption_key\":\"AQID\"" in json, json)
     }
 }

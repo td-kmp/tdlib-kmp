@@ -47,7 +47,8 @@ if (result is OptionValueString) println(result.value)
 - abstract TL types are sealed interfaces, constructors data classes/objects, functions
   `TdFunction<R>` with `R` the result type;
 - JSON names are TDLib's (`@type`, snake_case fields); use `TdJson`, which matches TDLib's
-  dialect (int64 as strings, bytes as base64, defaults and nulls omitted);
+  dialect (bytes as base64, defaults and nulls omitted). int64 is a plain `Long`: TDLib writes
+  it as a string, which kotlinx reads, and accepts the number kotlinx writes;
 - a field is nullable exactly when TDLib's documentation says "may be null" (or, for
   function parameters, "pass null") — the rule TDLib uses for its own Java bindings.
 

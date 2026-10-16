@@ -93,8 +93,8 @@ private class TdApiWriter(private val tl: TlSchema, private val pkg: String) {
         val base = when (type) {
             is TlType.Builtin -> when (type.name) {
                 "int32" -> "kotlin.Int"
-                "int53" -> "kotlin.Long"
-                "int64" -> "@Serializable(TdInt64Serializer::class) kotlin.Long"
+                // TDLib writes int64 as a string; kotlinx reads that into Long, and TDLib accepts the number back.
+                "int53", "int64" -> "kotlin.Long"
                 "double" -> "kotlin.Double"
                 "string" -> "kotlin.String"
                 "bytes" -> "@Serializable(TdBytesSerializer::class) kotlin.ByteArray"
