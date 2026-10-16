@@ -59,6 +59,12 @@ class TdLibTest {
             response.contains(extra),
             "@extra field must be echoed back in the response: $response"
         )
+
+        // Exiting with a running instance aborts: atexit tears OpenSSL down under TDLib's threads.
+        TdLib.send(clientId, """{"@type":"close"}""")
+        repeat(60) {
+            if (TdLib.receive(0.5)?.contains("authorizationStateClosed") == true) return
+        }
     }
 
     @Test
