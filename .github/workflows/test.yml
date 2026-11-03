@@ -65,6 +65,11 @@ jobs:
         run: >
           ./gradlew :tdlib:jsBrowserTest :tdlib:wasmJsBrowserTest
           :tdlib-client:jsBrowserTest :tdlib-client:wasmJsBrowserTest
+      - name: Show lock file differences
+        if: failure()
+        run: |
+          diff kotlin-js-store/yarn.lock build/js/yarn.lock || true
+          diff kotlin-js-store/wasm/yarn.lock build/wasm/yarn.lock || true
 
   android:
     runs-on: ubuntu-24.04
