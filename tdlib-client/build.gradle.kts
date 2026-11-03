@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
+
 plugins {
     alias(libs.plugins.android.multiplatform.library)
     alias(libs.plugins.kotlin.multiplatform)
@@ -7,8 +9,12 @@ plugins {
 }
 
 kotlin {
+    applyHierarchyTemplate(tdlibSourceSetHierarchyTemplate)
+
     compilerOptions {
         freeCompilerArgs.add("-Xexpect-actual-classes")
+        // JsAny, JsArray, js(): the Kotlin/Wasm interop API (also reported on the js target via webMain).
+        optIn.add("kotlin.js.ExperimentalWasmJsInterop")
     }
 
     android {
@@ -36,11 +42,31 @@ kotlin {
     linuxX64()
     linuxArm64()
     mingwX64()
+    js {
+        browser {
+            testTask {
+                useKarma { useChromeHeadless() }
+            }
+        }
+        useEsModules()
+    }
+    @OptIn(ExperimentalWasmDsl::class)
+    wasmJs {
+        browser {
+            testTask {
+                useKarma { useChromeHeadless() }
+            }
+        }
+    }
 
     sourceSets {
         commonTest.dependencies {
             implementation(kotlin("test"))
             implementation(libs.kotlinx.coroutines.test)
+        }
+        webTest.dependencies {
+            implementation(libs.kotlinx.browser)
+            implementation(projects.tdlibWebWorkerTest)
         }
         commonMain.dependencies {
             api(projects.tdlib)

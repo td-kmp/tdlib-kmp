@@ -11,46 +11,57 @@ import org.jetbrains.kotlin.gradle.plugin.KotlinHierarchyTemplate
  *
  * ```
  * common
- * ├── jvmAndroid   (jvm + android — both use JNI)
- * │   ├── jvm
- * │   └── android
- * └── native
- *     ├── darwin
- *     │   ├── ios   (iosArm64, iosSimulatorArm64, iosX64)
- *     │   └── macos (macosArm64, macosX64)
- *     ├── linux     (linuxX64, linuxArm64)
- *     └── mingw     (mingwX64)
+ * ├── nonWeb        (TDLib linked into the process: NativeTdLib)
+ * │   ├── jvmAndroid   (jvm + android — both use JNI)
+ * │   │   ├── jvm
+ * │   │   └── android
+ * │   └── native
+ * │       ├── darwin
+ * │       │   ├── ios   (iosArm64, iosSimulatorArm64, iosX64)
+ * │       │   └── macos (macosArm64, macosX64)
+ * │       ├── linux     (linuxX64, linuxArm64)
+ * │       └── mingw     (mingwX64)
+ * └── web           (TDLib in a Web Worker: WorkerTdLib)
+ *     ├── js
+ *     └── wasmJs
  * ```
  */
 val tdlibSourceSetHierarchyTemplate = KotlinHierarchyTemplate {
     common {
-        group("jvmAndroid") {
-            withJvm()
-            withAndroid()
+        group("nonWeb") {
+            group("jvmAndroid") {
+                withJvm()
+                withAndroid()
+            }
+
+            group("native") {
+                group("darwin") {
+                    group("ios") {
+                        withIosArm64()
+                        withIosSimulatorArm64()
+                        withIosX64()
+                    }
+
+                    group("macos") {
+                        withMacosX64()
+                        withMacosArm64()
+                    }
+                }
+
+                group("linux") {
+                    withLinuxX64()
+                    withLinuxArm64()
+                }
+
+                group("mingw") {
+                    withMingwX64()
+                }
+            }
         }
 
-        group("native") {
-            group("darwin") {
-                group("ios") {
-                    withIosArm64()
-                    withIosSimulatorArm64()
-                    withIosX64()
-                }
-
-                group("macos") {
-                    withMacosX64()
-                    withMacosArm64()
-                }
-            }
-
-            group("linux") {
-                withLinuxX64()
-                withLinuxArm64()
-            }
-
-            group("mingw") {
-                withMingwX64()
-            }
+        group("web") {
+            withJs()
+            withWasmJs()
         }
     }
 }

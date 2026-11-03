@@ -32,11 +32,24 @@ dependencyResolutionManagement {
             metadataSources { artifact() }
             content { includeGroup("io.github.xephosbot.td-pack") }
         }
+        ivy("https://nodejs.org/dist") {
+            name = "Node.js distributions"
+            patternLayout { artifact("v[revision]/[artifact](-v[revision]-[classifier]).[ext]") }
+            metadataSources { artifact() }
+            content { includeModule("org.nodejs", "node") }
+        }
+        ivy("https://github.com/yarnpkg/yarn/releases/download") {
+            name = "Yarn distributions"
+            patternLayout { artifact("v[revision]/[artifact](-v[revision]).[ext]") }
+            metadataSources { artifact() }
+            content { includeModule("com.yarnpkg", "yarn") }
+        }
     }
 }
 
 include(":tdlib")
 include(":tdlib-client")
+include(":tdlib-web-worker-test")
 
 include(":tdlib-jvm-runtime")
 listOf("macos-arm64", "macos-x64", "linux-x64", "linux-arm64", "windows-x64", "windows-arm64").forEach {
