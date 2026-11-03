@@ -1875,8 +1875,10 @@ tapable@^2.3.0, tapable@^2.3.3:
   resolved "https://registry.yarnpkg.com/tapable/-/tapable-2.3.3.tgz#5da7c9992c46038221267985ab28421a8879f160"
   integrity sha512-uxc/zpqFg6x7C8vOE7lh6Lbda8eEL9zmVm/PLeTPBRhh1xCgdWaQ+J1CUieGpIfm2HdtsUpRv+HshiasBMcc6A==
 
-"tdlib-test-worker@file:../../tdlib-web-worker-test/web-worker":
+"tdlib-worker@file:../../tdlib-web-worker-test/web-worker":
   version "0.0.0"
+  dependencies:
+    "@td-kmp/tdlib-wasm" "https://github.com/td-kmp/td-pack/releases/download/v1.8.69/tdlib-web.tgz"
 
 terser@^5.51.0:
   version "5.51.2"

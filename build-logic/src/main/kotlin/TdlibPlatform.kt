@@ -48,12 +48,4 @@ enum class TdlibJvmPlatform(
 
 val TDLIB_ANDROID_ABIS = listOf("arm64-v8a", "armeabi-v7a", "x86_64", "x86")
 
-const val TDLIB_WEB_ASSET = "tdlib-web"
-const val TDLIB_WEB_NPM_PACKAGE = "@td-kmp/tdlib-wasm"
-
 fun androidTdpackAsset(abi: String): String = "tdlib-jni-android-$abi"
-
-const val TD_PACK_RELEASES = "https://github.com/td-kmp/td-pack/releases/download"
-
-/** The same package in `npm pack` format: the klib's npm dependency, no registry involved. */
-fun tdlibWebNpmUrl(version: String): String = "$TD_PACK_RELEASES/v$version/$TDLIB_WEB_ASSET.tgz"

@@ -106,8 +106,18 @@ The library does not ship a worker, but this repository contains a [worker imple
 
 ```
 worker/
-├── package.json   { "name": "tdlib-worker", "version": "0.0.0" }
+├── package.json
 └── worker.js
+```
+
+```json
+{
+  "name": "tdlib-worker",
+  "version": "0.0.0",
+  "dependencies": {
+    "@td-kmp/tdlib-wasm": "https://github.com/td-kmp/td-pack/releases/download/v1.8.69/tdlib-web.tgz"
+  }
+}
 ```
 
 ```kotlin
@@ -118,7 +128,6 @@ kotlin {
     sourceSets {
         webMain.dependencies {
             implementation(npm("tdlib-worker", layout.projectDirectory.dir("worker").asFile))
-            implementation(npm("@td-kmp/tdlib-wasm", "https://github.com/td-kmp/td-pack/releases/download/v1.8.69/tdlib-web.tgz"))
         }
     }
 }
