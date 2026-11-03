@@ -22,10 +22,13 @@ import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.first
 
 /**
- * One TDLib instance. TDLib starts it on the first [send]: subscribe to [updates] before
+ * One TDLib instance of a [TdLib]. TDLib starts it on the first [send]: subscribe to [updates] before
  * that, or read the latest state from [authorizationState], which is never missed.
+ *
+ * If the [TdLib] becomes unavailable (web: the worker failed), pending requests fail with
+ * [io.xbot.tdlib.TdLibUnavailableException] and [authorizationState] becomes [AuthorizationStateClosed].
  */
-public class TdClient private constructor(public val id: Int) {
+public class TdClient private constructor(public val id: Int, private val receiver: TdReceiver) {
 
     // Unbounded so the shared receive loop never waits for a slow collector.
     private val mutableUpdates = MutableSharedFlow<Update>(extraBufferCapacity = Int.MAX_VALUE)
@@ -35,7 +38,11 @@ public class TdClient private constructor(public val id: Int) {
     public val authorizationState: StateFlow<AuthorizationState?> = mutableAuthorizationState.asStateFlow()
 
     /** @throws TdException when TDLib answers with an error. */
-    public suspend fun <R : TdObject> send(function: TdFunction<R>): R = result(TdReceiver.request(this, function))
+    public suspend fun <R : TdObject> send(function: TdFunction<R>): R = result(receiver.request(this, function))
+
+    /** Runs one of the functions TDLib can execute synchronously (getTextEntities, getOption, ...). */
+    public suspend fun <R : TdObject> execute(function: TdFunction<R>): R =
+        result(parseTdObject(checkNotNull(receiver.tdLib.execute(function.toTdJson())) { "TDLib returned no result" }))
 
     public inline fun <reified T : Update> updatesOf(): Flow<T> = updates.filterIsInstance<T>()
 
@@ -53,11 +60,11 @@ public class TdClient private constructor(public val id: Int) {
     }
 
     public companion object {
-        public suspend fun create(): TdClient = TdClient(TdLib.createClientId()).also { TdReceiver.register(it) }
-
-        /** Runs one of the functions TDLib can execute synchronously (getTextEntities, getOption, ...). */
-        public fun <R : TdObject> execute(function: TdFunction<R>): R =
-            result(parseTdObject(checkNotNull(TdLib.execute(function.toTdJson())) { "TDLib returned no result" }))
+        /** A new instance of [tdLib]: [io.xbot.tdlib.NativeTdLib], or a [io.xbot.tdlib.WorkerTdLib] on the web. */
+        public suspend fun create(tdLib: TdLib): TdClient {
+            val receiver = TdReceiver.of(tdLib)
+            return TdClient(tdLib.createClientId(), receiver).also { receiver.register(it) }
+        }
 
         @Suppress("UNCHECKED_CAST")
         private fun <R : TdObject> result(value: TdObject): R = if (value is Error) throw TdException(value) else value as R

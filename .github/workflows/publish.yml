@@ -1,8 +1,9 @@
 name: Publish
 
 on:
-  release:
-    types: [ released, prereleased ]
+  push:
+    tags:
+      - 'v*'
 
 permissions:
   contents: read
@@ -12,6 +13,9 @@ jobs:
     name: Release build and publish
     # Apple klibs can only be built on macOS.
     runs-on: macos-15
+    outputs:
+      tdlib: ${{ steps.version.outputs.tdlib }}
+      version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@v5
 
@@ -23,10 +27,13 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
 
       - name: Check the tag matches the version
+        id: version
         run: |
           tdlib=$(sed -n 's/^tdlib.version=//p' gradle.properties)
           library=$(sed -n 's/^library.version=//p' gradle.properties)
           [ "$GITHUB_REF_NAME" = "v$tdlib-$library" ] || { echo "Tag $GITHUB_REF_NAME, but gradle.properties says v$tdlib-$library"; exit 1; }
+          echo "tdlib=$tdlib" >> "$GITHUB_OUTPUT"
+          echo "version=$tdlib-$library" >> "$GITHUB_OUTPUT"
 
       - name: Publish to Maven Central
         run: ./gradlew publishToMavenCentral --no-configuration-cache
@@ -36,3 +43,24 @@ jobs:
           ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.SIGNING_KEY_ID }}
           ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
           ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.GPG_KEY_CONTENTS }}
+
+  release:
+    name: GitHub release
+    needs: publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Write the notes
+        run: |
+          sed -e "s/@TDLIB@/${{ needs.publish.outputs.tdlib }}/g" -e "s/@VERSION@/${{ needs.publish.outputs.version }}/g" \
+            .github/release-notes.md > notes.md
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ needs.publish.outputs.version }}
+          body_path: notes.md
+          generate_release_notes: true
+          prerelease: ${{ contains(github.ref_name, '-alpha') || contains(github.ref_name, '-beta') || contains(github.ref_name, '-rc') }}

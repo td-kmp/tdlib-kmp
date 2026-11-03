@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
+
 plugins {
     alias(libs.plugins.android.multiplatform.library)
     alias(libs.plugins.kotlin.multiplatform)
@@ -10,6 +12,7 @@ kotlin {
 
     compilerOptions {
         freeCompilerArgs.add("-Xexpect-actual-classes")
+        optIn.add("kotlin.js.ExperimentalWasmJsInterop")
     }
 
     android {
@@ -44,13 +47,39 @@ kotlin {
     linuxX64()
     linuxArm64()
     mingwX64()
+    js {
+        browser {
+            testTask {
+                useKarma { useChromeHeadless() }
+            }
+        }
+        useEsModules()
+    }
+    @OptIn(ExperimentalWasmDsl::class)
+    wasmJs {
+        browser {
+            testTask {
+                useKarma { useChromeHeadless() }
+            }
+        }
+    }
 
     sourceSets {
+        commonMain.dependencies {
+            api(libs.kotlinx.coroutines.core)
+        }
+        webMain.dependencies {
+            api(libs.kotlinx.browser)
+        }
         jvmMain.dependencies {
             runtimeOnly(projects.tdlibJvmRuntime)
         }
         commonTest.dependencies {
             implementation(kotlin("test"))
+            implementation(libs.kotlinx.coroutines.test)
+        }
+        webTest.dependencies {
+            implementation(projects.tdlibWebWorkerTest)
         }
         getByName("androidDeviceTest") {
             dependencies {

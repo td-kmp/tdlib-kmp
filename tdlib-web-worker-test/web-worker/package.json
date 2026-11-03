@@ -1,0 +1,8 @@
+{
+  "name": "tdlib-worker",
+  "version": "0.0.0",
+  "license": "BSL-1.0",
+  "dependencies": {
+    "@td-kmp/tdlib-wasm": "https://github.com/td-kmp/td-pack/releases/download/v1.8.69/tdlib-web.tgz"
+  }
+}
