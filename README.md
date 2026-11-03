@@ -100,42 +100,45 @@ client.close() // before the process exits, or data can be lost
 
 ## Web
 
-TDLib has no threads in the browser and all its work blocks the thread it runs on, so it runs in a Web Worker. The worker is your application's, the way it is with [Room](https://developer.android.com/jetpack/androidx/releases/room3). `WorkerTdLib`'s KDoc documents the protocol.
+`WorkerTdLib` is a `TdLib` that communicates with a [Web Worker](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API), so TDLib's work stays off the main thread. To instantiate it, a worker that implements a simple communication protocol is required. The protocol is described in the [`WorkerTdLib` KDoc](tdlib/src/webMain/kotlin/io/xbot/tdlib/WorkerTdLib.kt).
 
-1. Copy [`tdlib-web-worker-test/web-worker`](tdlib-web-worker-test/web-worker) to a `worker` directory in your module. In its `package.json`, name it `tdlib-worker`.
+The library does not ship a worker, but this repository contains a [worker implementation](tdlib-web-worker-test/web-worker/worker.js) that you can copy into your project. It uses the `@td-kmp/tdlib-wasm` package from [td-pack](https://github.com/td-kmp/td-pack) and stores `/tdlib` in IndexedDB. The worker is added as a local npm package, thanks to [Kotlin's support for npm dependencies](https://kotlinlang.org/docs/using-packages-from-npm.html):
 
-2. Add it and the TDLib package of the same version as the library:
+```
+worker/
+├── package.json   { "name": "tdlib-worker", "version": "0.0.0" }
+└── worker.js
+```
 
-   ```kotlin
-   kotlin {
-       js { browser(); useEsModules(); binaries.executable() }
-       wasmJs { browser(); binaries.executable() }
+```kotlin
+kotlin {
+    js { browser(); useEsModules(); binaries.executable() }
+    wasmJs { browser(); binaries.executable() }
 
-       sourceSets {
-           webMain.dependencies {
-               implementation(npm("tdlib-worker", layout.projectDirectory.dir("worker").asFile))
-               implementation(npm("@td-kmp/tdlib-wasm", "https://github.com/td-kmp/td-pack/releases/download/v1.8.69/tdlib-web.tgz"))
-           }
-       }
-   }
-   ```
+    sourceSets {
+        webMain.dependencies {
+            implementation(npm("tdlib-worker", layout.projectDirectory.dir("worker").asFile))
+            implementation(npm("@td-kmp/tdlib-wasm", "https://github.com/td-kmp/td-pack/releases/download/v1.8.69/tdlib-web.tgz"))
+        }
+    }
+}
+```
 
-3. Start it:
+The version in that URL must be the `<TDLib>` part of this library's version: `td_api` is generated for one TDLib version, and updates it cannot decode are lost.
 
-   ```kotlin
-   @OptIn(ExperimentalWasmJsInterop::class)
-   fun tdlibWorker(): Worker =
-       js("""new Worker(new URL("tdlib-worker/worker.js", import.meta.url), { type: "module" })""")
+Once a worker is set up, using TDLib on the web is similar to other platforms:
 
-   val client = signIn(WorkerTdLib(tdlibWorker()), databaseDirectory = "/tdlib/db", askUser)
-   ```
+```kotlin
+suspend fun createClient(): TdClient = TdClient.create(WorkerTdLib(createWorker()))
 
-Good to know:
+@OptIn(ExperimentalWasmJsInterop::class)
+fun createWorker(): Worker =
+    js("""new Worker(new URL("tdlib-worker/worker.js", import.meta.url), { type: "module" })""")
+```
 
-- **Versions must match.** `td_api` is generated for one TDLib version, and updates it cannot decode are lost.
-- **Storage is the worker's.** The sample keeps `/tdlib` in IndexedDB, written every 5 s and before a client is reported closed. Anything else, such as a `filesDirectory` outside it, stays in memory and is gone with the worker. Run one worker per storage at a time: two would erase each other's files.
-- **Limits of TDLib in the browser.** It talks to Telegram over WebSockets only and has no proxy support.
-- **No COOP/COEP headers needed.** The build does not use `SharedArrayBuffer`.
+The worker owns storage. The sample writes `/tdlib` to IndexedDB every 5 s and before a client is reported closed, so put `databaseDirectory` under it, for example `/tdlib/db`. Anything else, such as a `filesDirectory` outside it, stays in memory and is gone with the worker. Run one worker per storage at a time: two would erase each other's files.
+
+In the browser TDLib talks to Telegram over WebSockets only and has no proxy support. The build does not use `SharedArrayBuffer`, so no COOP/COEP headers are needed.
 
 ## License
 
