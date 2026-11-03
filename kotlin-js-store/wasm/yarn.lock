@@ -4,7 +4,6 @@
 
 "@td-kmp/tdlib-wasm@https://github.com/td-kmp/td-pack/releases/download/v1.8.69/tdlib-web.tgz":
   version "1.8.69"
-  uid "061f192c199cbc2fa51e3b21202161d72063d6cd"
   resolved "https://github.com/td-kmp/td-pack/releases/download/v1.8.69/tdlib-web.tgz#061f192c199cbc2fa51e3b21202161d72063d6cd"
 
 "tdlib-worker@file:../../tdlib-web-worker-test/web-worker":
