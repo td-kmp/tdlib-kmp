@@ -18,6 +18,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.longOrNull
@@ -83,7 +84,9 @@ internal class TdReceiver private constructor(val tdLib: TdLib) {
             TdJson.parseToJsonElement(event).jsonObject["@extra"]?.jsonPrimitive?.longOrNull?.let { answer(it, event) }
             return
         }
-        val clientId = event.trailingClientId() ?: return
+        val clientId = event.trailingClientId()
+            ?: TdJson.parseToJsonElement(event).jsonObject["@client_id"]?.jsonPrimitive?.intOrNull
+            ?: return
         val client = mutex.withLock { clients[clientId] } ?: return
         client.onUpdate(update)
         if (update is UpdateAuthorizationState && update.authorizationState is AuthorizationStateClosed) {
@@ -115,7 +118,7 @@ internal class TdReceiver private constructor(val tdLib: TdLib) {
 }
 
 // TDLib appends "@extra" and then "@client_id" to the object it returns (td/telegram/ClientJson.cpp), so both are
-// read off the end and the event is decoded straight from the string.
+// read off the end and the event is decoded straight from the string; an event with them elsewhere is parsed whole.
 private const val CLIENT_ID = ",\"@client_id\":"
 private const val EXTRA = ",\"@extra\":"
 private const val MAX_LONG_LENGTH = 20

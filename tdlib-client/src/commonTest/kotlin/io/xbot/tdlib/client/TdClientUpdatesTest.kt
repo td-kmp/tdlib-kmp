@@ -29,6 +29,10 @@ private class UpdatesTdLib : TdLib {
         events.trySend(event.dropLast(1) + ",\"@client_id\":1}")
     }
 
+    fun emitWithClientIdFirst(event: String) {
+        events.trySend("{\"@client_id\":1," + event.drop(1))
+    }
+
     override fun createClientId(): Int = 1
     override fun send(clientId: Int, request: String) = Unit
     override suspend fun receive(timeout: Duration): String? = withTimeoutOrNull(timeout) { events.receive() }
@@ -53,6 +57,19 @@ class TdClientUpdatesTest {
                 assertEquals(7, files.await().single().file.id)
                 assertEquals(2, options.await().size)
                 assertTrue(all.await().map { it::class } == listOf(UpdateOption::class, UpdateFile::class, UpdateOption::class))
+            }
+        }
+    }
+
+    @Test
+    fun anUpdateWithItsClientIdFirstStillArrives() = runTest {
+        withContext(Dispatchers.Default) {
+            withTimeout(10.seconds) {
+                val tdLib = UpdatesTdLib()
+                val client = TdClient.create(tdLib)
+                val files = async(start = CoroutineStart.UNDISPATCHED) { client.updatesOf<UpdateFile>().take(1).toList() }
+                tdLib.emitWithClientIdFirst(FILE)
+                assertEquals(7, files.await().single().file.id)
             }
         }
     }
