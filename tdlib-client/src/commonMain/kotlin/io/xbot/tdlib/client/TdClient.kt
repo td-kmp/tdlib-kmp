@@ -12,15 +12,10 @@ import io.xbot.tdlib.api.UpdateAuthorizationState
 import io.xbot.tdlib.api.parseTdObject
 import io.xbot.tdlib.api.toTdJson
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asSharedFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
-import kotlin.concurrent.atomics.AtomicReference
-import kotlin.concurrent.atomics.ExperimentalAtomicApi
 import kotlin.reflect.KClass
 
 /**
@@ -30,18 +25,13 @@ import kotlin.reflect.KClass
  * If the [TdLib] becomes unavailable (web: the worker failed), pending requests fail with
  * [io.xbot.tdlib.TdLibUnavailableException] and [authorizationState] becomes [AuthorizationStateClosed].
  */
-@OptIn(ExperimentalAtomicApi::class)
 public class TdClient private constructor(public val id: Int, private val receiver: TdReceiver) {
+    private val flows = UpdateFlows()
 
-    // Unbounded so the shared receive loop never waits for a slow collector.
-    private val mutableUpdates = MutableSharedFlow<Update>(extraBufferCapacity = Int.MAX_VALUE)
-    public val updates: SharedFlow<Update> = mutableUpdates.asSharedFlow()
+    public val updates: SharedFlow<Update> get() = flows.all
 
-    // One flow per update class, so a collector of one class isn't resumed for every other update.
-    private val typedUpdates = AtomicReference(emptyMap<KClass<out Update>, MutableSharedFlow<Update>>())
-
-    private val mutableAuthorizationState = MutableStateFlow<AuthorizationState?>(null)
-    public val authorizationState: StateFlow<AuthorizationState?> = mutableAuthorizationState.asStateFlow()
+    public val authorizationState: StateFlow<AuthorizationState?>
+        field = MutableStateFlow<AuthorizationState?>(null)
 
     /** @throws TdException when TDLib answers with an error. */
     public suspend fun <R : TdObject> send(function: TdFunction<R>): R = result(receiver.request(this, function))
@@ -50,19 +40,11 @@ public class TdClient private constructor(public val id: Int, private val receiv
     public suspend fun <R : TdObject> execute(function: TdFunction<R>): R =
         result(parseTdObject(checkNotNull(receiver.tdLib.execute(function.toTdJson())) { "TDLib returned no result" }))
 
+    /** The updates of one class. Its collectors aren't resumed for the updates of other classes. */
     public inline fun <reified T : Update> updatesOf(): Flow<T> = updatesOf(T::class)
 
     @PublishedApi
-    @Suppress("UNCHECKED_CAST")
-    internal fun <T : Update> updatesOf(type: KClass<T>): Flow<T> {
-        if (type == Update::class) return updates as Flow<T>
-        while (true) {
-            val current = typedUpdates.load()
-            current[type]?.let { return it.asSharedFlow() as Flow<T> }
-            val flow = MutableSharedFlow<Update>(extraBufferCapacity = Int.MAX_VALUE)
-            if (typedUpdates.compareAndSet(current, current + (type to flow))) return flow.asSharedFlow() as Flow<T>
-        }
-    }
+    internal fun <T : Update> updatesOf(type: KClass<T>): Flow<T> = flows[type]
 
     /** Closes the instance and waits until TDLib has released it. */
     public suspend fun close() {
@@ -73,9 +55,8 @@ public class TdClient private constructor(public val id: Int, private val receiv
     }
 
     internal fun onUpdate(update: Update) {
-        if (update is UpdateAuthorizationState) mutableAuthorizationState.value = update.authorizationState
-        mutableUpdates.tryEmit(update)
-        typedUpdates.load()[update::class]?.tryEmit(update)
+        if (update is UpdateAuthorizationState) authorizationState.value = update.authorizationState
+        flows.emit(update)
     }
 
     public companion object {
