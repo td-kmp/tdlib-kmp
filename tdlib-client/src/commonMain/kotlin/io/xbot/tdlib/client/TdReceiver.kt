@@ -28,12 +28,9 @@ internal class TdReceiver private constructor(val tdLib: TdLib) {
     private var nextExtra = 1L
     private var running = false
 
-    suspend fun register(client: TdClient) {
-        val wasRunning = mutex.withLock {
-            clients[client.id] = client
-            running.also { running = true }
-        }
-        if (!wasRunning) startLoop()
+    suspend fun register(client: TdClient) = mutex.withLock {
+        clients[client.id] = client
+        ensureLoop()
     }
 
     suspend fun request(client: TdClient, function: TdFunction<*>): TdObject {
@@ -44,6 +41,7 @@ internal class TdReceiver private constructor(val tdLib: TdLib) {
             nextExtra++.also {
                 tdLib.send(client.id, request.withExtra(it))
                 pending[it] = answer
+                ensureLoop()
             }
         }
         try {
@@ -54,14 +52,16 @@ internal class TdReceiver private constructor(val tdLib: TdLib) {
         }
     }
 
-    // The loop is the TdLib's, not a caller's: it runs for as long as the TdLib has clients.
+    // The TdLib's loop, not a caller's: started under the lock, it runs while a client or a request expects an event.
     @OptIn(DelicateCoroutinesApi::class)
-    private fun startLoop() {
+    private fun ensureLoop() {
+        if (running) return
+        running = true
         GlobalScope.launch(Dispatchers.Default) {
             try {
                 while (true) {
                     val event = tdLib.receive(1.seconds)
-                    if (event != null) runCatching { dispatch(TdEvent(event)) } else if (stopWithoutClients()) break
+                    if (event != null) runCatching { dispatch(TdEvent(event)) } else if (stopIfIdle()) break
                 }
             } catch (e: TdLibUnavailableException) {
                 fail(e)
@@ -69,8 +69,8 @@ internal class TdReceiver private constructor(val tdLib: TdLib) {
         }
     }
 
-    private suspend fun stopWithoutClients(): Boolean = mutex.withLock {
-        clients.isEmpty().also { unused -> if (unused) running = false }
+    private suspend fun stopIfIdle(): Boolean = mutex.withLock {
+        (clients.isEmpty() && pending.isEmpty()).also { idle -> if (idle) running = false }
     }
 
     private suspend fun dispatch(event: TdEvent) {

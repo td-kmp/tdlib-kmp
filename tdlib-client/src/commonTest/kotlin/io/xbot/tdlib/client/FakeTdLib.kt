@@ -34,7 +34,7 @@ internal val noAnswer: Answer = { _, _ -> null }
 /** A TDLib of the test's own: it keeps what is sent, answers with [answer] and hands out the events it is given. */
 internal class FakeTdLib(private val answer: Answer = okAnswer) : TdLib {
     val sent = Channel<JsonObject>(Channel.UNLIMITED)
-    private val events = Channel<String>(Channel.UNLIMITED)
+    private val events = Channel<String?>(Channel.UNLIMITED)
     private var nextClientId = 1
 
     override fun createClientId(): Int = nextClientId++
@@ -57,6 +57,11 @@ internal class FakeTdLib(private val answer: Answer = okAnswer) : TdLib {
 
     /** An update of [client], framed as TDLib frames one. */
     fun emitUpdate(client: TdClient, update: String) = emit("""${update.dropLast(1)},"@client_id":${client.id}}""")
+
+    /** [receive] returns null at once, as when its timeout passes without an event. */
+    fun timeOut() {
+        events.trySend(null)
+    }
 
     /** TDLib is gone: [receive] throws from now on. */
     fun stop() {

@@ -20,5 +20,6 @@ class TdClientFailureTest {
         assertFailsWith<TdLibUnavailableException> { request.await().getOrThrow() }
         client.close()
         assertIs<AuthorizationStateClosed>(client.authorizationState.value)
+        assertFailsWith<TdLibUnavailableException> { client.send(GetOption(name = "version")) }
     }
 }
