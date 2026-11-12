@@ -1,60 +1,54 @@
 package io.xbot.tdlib.client
 
-import io.xbot.tdlib.TdLib
-import io.xbot.tdlib.TdLogMessageHandler
 import io.xbot.tdlib.api.GetOption
+import io.xbot.tdlib.api.Ok
 import io.xbot.tdlib.api.OptionValueString
-import kotlinx.coroutines.Dispatchers
+import io.xbot.tdlib.api.SetOption
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeout
-import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.serialization.SerializationException
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.seconds
-
-// Answers every request at once with the option's name, as TDLib frames an answer.
-private class EchoTdLib : TdLib {
-    val extras = mutableListOf<Long>()
-    private val events = Channel<String>(Channel.UNLIMITED)
-
-    override fun createClientId(): Int = 1
-    override fun send(clientId: Int, request: String) {
-        val extra = checkNotNull(request.trailingExtra())
-        extras += extra
-        val name = request.substringAfter("\"name\":\"").substringBefore('"')
-        events.trySend("""{"@type":"optionValueString","value":"$name","@extra":$extra,"@client_id":$clientId}""")
-    }
-    override suspend fun receive(timeout: Duration): String? = withTimeoutOrNull(timeout) { events.receive() }
-    override suspend fun execute(request: String): String? = null
-    override fun setLogMessageHandler(maxVerbosityLevel: Int, handler: TdLogMessageHandler?) = Unit
-}
+import kotlin.test.assertFailsWith
 
 class TdReceiverTest {
     @Test
-    fun readsExtraAndClientIdOffTheEnd() {
-        assertEquals(7L, """{"@type":"ok","@extra":7,"@client_id":2}""".trailingExtra())
-        assertEquals(2, """{"@type":"ok","@extra":7,"@client_id":2}""".trailingClientId())
-        val update = """{"@type":"updateOption","name":"a,\"@extra\":5","value":{"@type":"optionValueEmpty"},"@client_id":3}"""
-        assertEquals(null, update.trailingExtra())
-        assertEquals(3, update.trailingClientId())
+    fun concurrentRequestsReachTdLibInTheirOrder() = fakeTdLibTest(
+        answer = { request, clientId ->
+            """{"@type":"optionValueString","value":"${request.name}","@extra":${request.extra},"@client_id":$clientId}"""
+        },
+    ) { tdLib ->
+        val client = TdClient.create(tdLib)
+        val names = List(REQUESTS) { "option$it" }
+        val answers = names.map { async { client.send(GetOption(name = it)) } }.awaitAll()
+        assertEquals(names, answers.map { (it as OptionValueString).value })
+        val extras = List(REQUESTS) { tdLib.sent.receive().extra }
+        assertEquals(extras.sorted(), extras)
     }
 
     @Test
-    fun concurrentRequestsReachTdLibInTheirOrder() = runTest {
-        withContext(Dispatchers.Default) {
-            withTimeout(10.seconds) {
-                val tdLib = EchoTdLib()
-                val client = TdClient.create(tdLib)
-                val names = (1..200).map { "option$it" }
-                val answers = names.map { async { client.send(GetOption(name = it)) } }.awaitAll()
-                assertEquals(names, answers.map { (it as OptionValueString).value })
-                assertEquals(tdLib.extras.sorted(), tdLib.extras)
-            }
-        }
+    fun anAnswerLaidOutAnotherWayIsRouted() = fakeTdLibTest(
+        answer = { request, clientId ->
+            """{ "@extra": ${request.extra}, "@client_id": $clientId, "@type": "ok" }"""
+        },
+    ) { tdLib ->
+        val client = TdClient.create(tdLib)
+        assertEquals(Ok, client.send(SetOption(name = "name")))
+    }
+
+    @Test
+    fun anAnswerThatCannotBeDecodedFailsOnlyItsRequest() = fakeTdLibTest(
+        answer = { request, clientId ->
+            val type = if (request.name == "unknown") "noSuchType" else "ok"
+            """{"@type":"$type","@extra":${request.extra},"@client_id":$clientId}"""
+        },
+    ) { tdLib ->
+        val client = TdClient.create(tdLib)
+        assertFailsWith<SerializationException> { client.send(SetOption(name = "unknown")) }
+        assertEquals(Ok, client.send(SetOption(name = "name")))
+    }
+
+    private companion object {
+        const val REQUESTS = 200
     }
 }
