@@ -18,8 +18,10 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.first
+import kotlin.concurrent.atomics.AtomicReference
+import kotlin.concurrent.atomics.ExperimentalAtomicApi
+import kotlin.reflect.KClass
 
 /**
  * One TDLib instance of a [TdLib]. TDLib starts it on the first [send]: subscribe to [updates] before
@@ -28,11 +30,15 @@ import kotlinx.coroutines.flow.first
  * If the [TdLib] becomes unavailable (web: the worker failed), pending requests fail with
  * [io.xbot.tdlib.TdLibUnavailableException] and [authorizationState] becomes [AuthorizationStateClosed].
  */
+@OptIn(ExperimentalAtomicApi::class)
 public class TdClient private constructor(public val id: Int, private val receiver: TdReceiver) {
 
     // Unbounded so the shared receive loop never waits for a slow collector.
     private val mutableUpdates = MutableSharedFlow<Update>(extraBufferCapacity = Int.MAX_VALUE)
     public val updates: SharedFlow<Update> = mutableUpdates.asSharedFlow()
+
+    // One flow per update class, so a collector of one class isn't resumed for every other update.
+    private val typedUpdates = AtomicReference(emptyMap<KClass<out Update>, MutableSharedFlow<Update>>())
 
     private val mutableAuthorizationState = MutableStateFlow<AuthorizationState?>(null)
     public val authorizationState: StateFlow<AuthorizationState?> = mutableAuthorizationState.asStateFlow()
@@ -44,7 +50,19 @@ public class TdClient private constructor(public val id: Int, private val receiv
     public suspend fun <R : TdObject> execute(function: TdFunction<R>): R =
         result(parseTdObject(checkNotNull(receiver.tdLib.execute(function.toTdJson())) { "TDLib returned no result" }))
 
-    public inline fun <reified T : Update> updatesOf(): Flow<T> = updates.filterIsInstance<T>()
+    public inline fun <reified T : Update> updatesOf(): Flow<T> = updatesOf(T::class)
+
+    @PublishedApi
+    @Suppress("UNCHECKED_CAST")
+    internal fun <T : Update> updatesOf(type: KClass<T>): Flow<T> {
+        if (type == Update::class) return updates as Flow<T>
+        while (true) {
+            val current = typedUpdates.load()
+            current[type]?.let { return it.asSharedFlow() as Flow<T> }
+            val flow = MutableSharedFlow<Update>(extraBufferCapacity = Int.MAX_VALUE)
+            if (typedUpdates.compareAndSet(current, current + (type to flow))) return flow.asSharedFlow() as Flow<T>
+        }
+    }
 
     /** Closes the instance and waits until TDLib has released it. */
     public suspend fun close() {
@@ -57,6 +75,7 @@ public class TdClient private constructor(public val id: Int, private val receiv
     internal fun onUpdate(update: Update) {
         if (update is UpdateAuthorizationState) mutableAuthorizationState.value = update.authorizationState
         mutableUpdates.tryEmit(update)
+        typedUpdates.load()[update::class]?.tryEmit(update)
     }
 
     public companion object {
