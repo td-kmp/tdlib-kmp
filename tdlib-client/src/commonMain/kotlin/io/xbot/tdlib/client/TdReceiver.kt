@@ -9,6 +9,7 @@ import io.xbot.tdlib.api.TdObject
 import io.xbot.tdlib.api.Update
 import io.xbot.tdlib.api.UpdateAuthorizationState
 import io.xbot.tdlib.api.anyFunction
+import io.xbot.tdlib.api.anyObject
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -17,9 +18,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.longOrNull
@@ -30,7 +28,7 @@ import kotlin.time.Duration.Companion.seconds
 internal class TdReceiver private constructor(val tdLib: TdLib) {
     private val mutex = Mutex()
     private val clients = mutableMapOf<Int, TdClient>()
-    private val pending = mutableMapOf<Long, CompletableDeferred<TdObject>>()
+    private val pending = mutableMapOf<Long, CompletableDeferred<String>>()
     private var nextExtra = 1L
     private var running = false
 
@@ -43,12 +41,18 @@ internal class TdReceiver private constructor(val tdLib: TdLib) {
     }
 
     suspend fun request(client: TdClient, function: TdFunction<*>): TdObject {
-        val answer = CompletableDeferred<TdObject>()
-        val extra = mutex.withLock { nextExtra++.also { pending[it] = answer } }
-        val json = TdJson.encodeToJsonElement(anyFunction, function).jsonObject
+        val answer = CompletableDeferred<String>()
+        val request = TdJson.encodeToString(anyFunction, function).dropLast(1)
+        var extra = 0L
         try {
-            tdLib.send(client.id, JsonObject(json + ("@extra" to JsonPrimitive(extra))).toString())
-            return answer.await()
+            // Sent under the lock, so requests reach TDLib in the order they were made.
+            mutex.withLock {
+                extra = nextExtra++
+                pending[extra] = answer
+                tdLib.send(client.id, "$request,\"@extra\":$extra}")
+            }
+            // Decoded here rather than in the receive loop, and never on the caller's main thread.
+            return withContext(Dispatchers.Default) { TdJson.decodeFromString(anyObject, answer.await()) }
         } finally {
             if (!answer.isCompleted) withContext(NonCancellable) { mutex.withLock { pending.remove(extra) } }
         }
@@ -72,21 +76,23 @@ internal class TdReceiver private constructor(val tdLib: TdLib) {
     }
 
     private suspend fun dispatch(event: String) {
-        val json = TdJson.parseToJsonElement(event).jsonObject
-        val extra = json["@extra"]?.jsonPrimitive?.longOrNull
-        val value = runCatching { TdJson.decodeFromJsonElement(TdObject.serializer(), json) }
-        if (extra != null) {
-            val answer = mutex.withLock { pending.remove(extra) } ?: return
-            value.fold(answer::complete, answer::completeExceptionally)
+        val extra = event.trailingExtra()
+        if (extra != null) return answer(extra, event)
+        val update = runCatching { TdJson.decodeFromString(anyObject, event) }.getOrNull() as? Update
+        if (update == null) {
+            TdJson.parseToJsonElement(event).jsonObject["@extra"]?.jsonPrimitive?.longOrNull?.let { answer(it, event) }
             return
         }
-        val update = value.getOrNull() as? Update ?: return
-        val clientId = json["@client_id"]?.jsonPrimitive?.intOrNull ?: return
+        val clientId = event.trailingClientId() ?: return
         val client = mutex.withLock { clients[clientId] } ?: return
         client.onUpdate(update)
         if (update is UpdateAuthorizationState && update.authorizationState is AuthorizationStateClosed) {
             mutex.withLock { clients.remove(clientId) }
         }
+    }
+
+    private suspend fun answer(extra: Long, event: String) {
+        mutex.withLock { pending.remove(extra) }?.complete(event)
     }
 
     private suspend fun fail(cause: TdLibUnavailableException) {
@@ -106,4 +112,21 @@ internal class TdReceiver private constructor(val tdLib: TdLib) {
 
         suspend fun of(tdLib: TdLib): TdReceiver = mutex.withLock { receivers.getOrPut(tdLib) { TdReceiver(tdLib) } }
     }
+}
+
+// TDLib appends "@extra" and then "@client_id" to the object it returns (td/telegram/ClientJson.cpp), so both are
+// read off the end and the event is decoded straight from the string.
+private const val CLIENT_ID = ",\"@client_id\":"
+private const val EXTRA = ",\"@extra\":"
+private const val MAX_LONG_LENGTH = 20
+
+internal fun String.trailingClientId(): Int? {
+    val at = lastIndexOf(CLIENT_ID)
+    return if (at < 0) null else substring(at + CLIENT_ID.length, length - 1).toIntOrNull()
+}
+
+internal fun String.trailingExtra(): Long? {
+    val end = lastIndexOf(CLIENT_ID).takeIf { it >= 0 } ?: (length - 1)
+    val at = indexOf(EXTRA, (end - EXTRA.length - MAX_LONG_LENGTH).coerceAtLeast(0))
+    return if (at < 0 || at >= end) null else substring(at + EXTRA.length, end).toLongOrNull()
 }
