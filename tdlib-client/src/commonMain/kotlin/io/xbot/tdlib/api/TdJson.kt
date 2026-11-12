@@ -24,8 +24,11 @@ public object TdBytesSerializer : KSerializer<ByteArray> {
     override fun deserialize(decoder: Decoder): ByteArray = Base64.decode(decoder.decodeString())
 }
 
-internal val anyFunction = TdFunction.serializer(TdObject.serializer())
+// The plugin caches no sealed interface's serializer: TdObject.serializer() builds one over every class on each call.
+internal val anyObject: KSerializer<TdObject> = TdObject.serializer()
+
+internal val anyFunction = TdFunction.serializer(anyObject)
 
 public fun TdFunction<*>.toTdJson(): String = TdJson.encodeToString(anyFunction, this)
 
-public fun parseTdObject(json: String): TdObject = TdJson.decodeFromString(TdObject.serializer(), json)
+public fun parseTdObject(json: String): TdObject = TdJson.decodeFromString(anyObject, json)

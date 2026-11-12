@@ -18,7 +18,7 @@ The version is `<TDLib>-<library>`.
 
 ```toml
 [versions]
-tdlib = "1.8.69-1.0.0-alpha02"
+tdlib = "1.8.69-1.0.0-alpha03"
 
 [libraries]
 tdlib = { module = "io.github.xephosbot:tdlib-kmp", version.ref = "tdlib" }
@@ -95,6 +95,7 @@ client.close() // before the process exits, or data can be lost
 
 - `td_api` is generated from [`td_api.tl`](https://github.com/tdlib/td/blob/master/td/generate/scheme/td_api.tl): functions and objects keep their names in `PascalCase`, fields in `camelCase`. The [TDLib docs](https://core.telegram.org/tdlib/getting-started) apply as they are.
 - Subscribe to `updates` before the first `send`. `authorizationState` always holds the latest state.
+- Requests reach TDLib in the order `send` was called, whether or not the earlier ones have been answered.
 - Each `TdClient.create` is a separate TDLib instance, so give each its own `databaseDirectory`.
 - Without `tdlib-client`, `TdLib` is TDLib's JSON interface: `createClientId`, `send`, `receive`, `execute`.
 
